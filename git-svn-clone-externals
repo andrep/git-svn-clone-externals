@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e
+
+toplevel_directory="$(git rev-parse --show-cdup)" 
+current_directory="$(git rev-parse --show-prefix)"
+
+git svn propget svn:externals . | while read -a words
+do
+  [ -z "${words[*]}" ] && continue
+
+  local_directory="${words[0]}"
+  remote_url="${words[1]}"
+  echo "$local_directory -> $remote_url"
+
+  mkdir -p .git_externals
+
+  (cd .git_externals \
+   && git svn clone "$remote_url" "$local_directory")
+
+  ln -s .git_externals/"$local_directory" "$local_directory"
+
+  git_excludes_path="$toplevel_directory".git/info/exclude
+  if ! grep -q '^'"$current_directory".git_externals'$' "$git_excludes_path"
+  then
+    echo "$current_directory".git_externals >> "$git_excludes_path"
+  fi
+
+  if ! grep -q '^'"$current_directory""$local_directory"'$' "$git_excludes_path"
+  then
+    echo "$current_directory""$local_directory" >> "$git_excludes_path"
+  fi 
+
+done
+
+# :vi:sw=2 sts=2 ft=bash
+
