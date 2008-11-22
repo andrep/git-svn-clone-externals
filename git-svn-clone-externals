@@ -10,13 +10,20 @@ do
   [ -z "${words[*]}" ] && continue
 
   local_directory="${words[0]}"
+  revision=""
   remote_url="${words[1]}"
+
+  if [ -n "${words[2]}" ]; then
+    revision="${words[1]}"
+    remote_url="${words[2]}"
+  fi
+
   echo "$local_directory -> $remote_url"
 
   mkdir -p .git_externals
 
   (cd .git_externals \
-   && git svn clone "$remote_url" "$local_directory")
+   && git svn clone "$revision" "$remote_url" "$local_directory")
 
   ln -s .git_externals/"$local_directory" "$local_directory"
 
