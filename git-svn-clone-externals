@@ -22,48 +22,55 @@ function do_clone()
   (
 	cd .git_externals
 	if [ -d "$local_directory" ]; then
-		cd "$local_directory" && call git svn rebase
+		( 
+			cd "$local_directory"
+			call git svn fetch --all
+		)
 	else
-		call git svn clone "$revision" "$remote_url" "$local_directory"
+		module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tags.*\),\1,'`
+		call git svn clone "$revision" "$module" -T trunk -b branches -t tags "$local_directory"
 	fi
+	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tags.*\),\2,'|sed 's,^/,,'`
+	( 
+		cd "$local_directory"
+		call git reset --hard $branch 
+	)
   )
 }
 
 git-svn show-externals|grep -vE '#|^$'|while read -a words
 do
-  [ -z "${words[*]}" ] && continue
+	[ -z "${words[*]}" ] && continue
 
-  local_directory="$(echo ${words[0]}|sed 's,^/,,')"
-  revision=""
-  remote_url="${words[1]}"
+	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
+	revision=""
+	remote_url="${words[1]}"
 
-  if [ -n "${words[2]}" ]; then
-    revision="${words[1]}"
-    remote_url="${words[2]}"
-  fi
-  export local_directory revision remote_url
+	if [ -n "${words[2]}" ]; then
+		revision="${words[1]}"
+		remote_url="${words[2]}"
+	fi
+	export local_directory revision remote_url
 
-  echo "$local_directory -> $remote_url"
+	echo "$local_directory -> $remote_url"
 
-  dir=`dirname $local_directory`
-  [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
+	dir=`dirname $local_directory`
+	[ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
 
-  do_clone "$revision" "$remote_url" "$local_directory" || exit
+	do_clone "$revision" "$remote_url" "$local_directory" || exit
 
-  ln -sf ${toplevel_directory}/.git_externals/"$local_directory" "${toplevel_directory}/$local_directory"
+	ln -sf ${toplevel_directory}/.git_externals/"$local_directory" "${toplevel_directory}/$local_directory"
 
-  git_excludes_path=.git/info/exclude
-  if ! grep -q '^.git_externals$' "$git_excludes_path"
-  then
-    echo .git_externals >> "$git_excludes_path"
-  fi
+	git_excludes_path=.git/info/exclude
+	if ! grep -q '^.git_externals$' "$git_excludes_path"
+	then
+		echo .git_externals >> "$git_excludes_path"
+	fi
 
-  if ! grep -q '^'"$local_directory"'$' "$git_excludes_path"
-  then
-    echo "$local_directory" >> "$git_excludes_path"
-  fi 
+	if ! grep -q '^'"$local_directory"'$' "$git_excludes_path"
+	then
+		echo "$local_directory" >> "$git_excludes_path"
+	fi 
 
 done
-
-# :vi:sw=2 sts=2 ft=bash
 
