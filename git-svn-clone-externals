@@ -3,10 +3,8 @@
 set -e
 
 toplevel_directory="$(git rev-parse --show-cdup)" 
-current_directory="$(git rev-parse --show-prefix)"
+[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
-[ -n "$toplevel_directory" ] || toplevel_directory=`pwd`
-[ -n "$current_directory" ] || current_directory=`pwd`
 
 function call()
 {
@@ -18,25 +16,57 @@ function call()
 
 function do_clone()
 {
-  test -d .git_externals || return 1
-  (
-	cd .git_externals
-	if [ -d "$local_directory" ]; then
+	test -d .git_externals || return 1
+	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tag.*\),\1,'`
+	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tag.*\),\2,'|sed 's,^/,,'`
+	(
+		cd .git_externals
+		if [ -d "$local_directory" ]; then
+			( 
+				cd "$local_directory"
+				call git svn fetch --all
+			)
+		else
+			tags="tags"
+			brch="branches"
+			branchpath=$(echo $branch|cut -f1 -d/)
+			echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
+			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
+			call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+		fi
 		( 
 			cd "$local_directory"
-			call git svn fetch --all
+			call git reset --hard $branch 
 		)
-	else
-		module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tags.*\),\1,'`
-		call git svn clone "$revision" "$module" -T trunk -b branches -t tags "$local_directory"
-	fi
-	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tags.*\),\2,'|sed 's,^/,,'`
-	( 
-		cd "$local_directory"
-		call git reset --hard $branch 
 	)
-  )
 }
+
+function do_link()
+{
+	dir="$1"
+	base="$(dirname $dir)"
+	(
+		cd $base
+		rel=$(git rev-parse --show-cdup)
+		ln -sf ${rel}.git_externals/"$dir"
+	)
+}
+
+function do_excludes()
+{
+	dir="$1"
+	git_excludes_path=.git/info/exclude
+	if ! grep -q '^.git_externals$' "$git_excludes_path"
+	then
+		echo .git_externals >> "$git_excludes_path"
+	fi
+
+	if ! grep -q '^'"$dir"'$' "$git_excludes_path"
+	then
+		echo "$dir" >> "$git_excludes_path"
+	fi 
+}
+
 
 git-svn show-externals|grep -vE '#|^$'|while read -a words
 do
@@ -58,19 +88,8 @@ do
 	[ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
 
 	do_clone "$revision" "$remote_url" "$local_directory" || exit
-
-	ln -sf ${toplevel_directory}/.git_externals/"$local_directory" "${toplevel_directory}/$local_directory"
-
-	git_excludes_path=.git/info/exclude
-	if ! grep -q '^.git_externals$' "$git_excludes_path"
-	then
-		echo .git_externals >> "$git_excludes_path"
-	fi
-
-	if ! grep -q '^'"$local_directory"'$' "$git_excludes_path"
-	then
-		echo "$local_directory" >> "$git_excludes_path"
-	fi 
+	do_link "$local_directory"
+	do_excludes "$local_directory"
 
 done
 
