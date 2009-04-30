@@ -1,0 +1,48 @@
+#!/usr/bin/python
+
+from commands import getoutput
+import sys
+import logging
+
+logger = logging.getLogger()
+console = logging.StreamHandler()
+formatter = logging.Formatter('%(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logger.addHandler(console)
+logger.level = logging.INFO
+
+
+def find_svn_branch_name():
+    interesting_branches = ['remotes/git-svn',
+                            'remotes/trunk',
+                            'trunk']
+
+    gitbranch = getoutput('git branch -a | cut -c3-')
+
+    branches = gitbranch.split('\n')
+    for branch in interesting_branches:
+        if branch in branches:
+            return branch
+
+
+def find_uncommitted(svn_branch):
+    output = getoutput('git log --pretty="format:%%h %%s" %s..HEAD' %
+                       svn_branch)
+    if output:
+        print 'Possible unpushed commits:'
+        print output
+    else:
+        print 'No unpushed commits found.'
+
+
+if __name__ == '__main__':
+    status = getoutput('git status')
+    if status.startswith('fatal'):
+        print status
+        sys.exit(1)
+    svn_branch = find_svn_branch_name()
+    if svn_branch is None:
+        print "No svn branch found"
+        sys.exit(1)
+    logger.debug('Found branch: %s', svn_branch)
+    find_uncommitted(svn_branch)

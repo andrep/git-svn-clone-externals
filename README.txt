@@ -28,3 +28,25 @@ Enjoy,
 
 - Andre Pang <ozone@algorithm.com.au>
 
+
+git-svn-check-unpushed and git-svn-externals-check
+==================================================
+
+In addition to the git-svn-clone-externals script I added two more
+scripts:
+
+* ``git-svn-check-unpushed`` tries to determine whether there are
+  commits which are not yet pushed back to the subversion
+  repository. I took this idea from Magit (an interface to the version
+  control system Git, implemented as an extension to Emacs) and
+  implemented it in Python instead of Lisp.x
+
+* git-svn-externals-check is a script that displays whether there are
+  uncommitted changes or commits that are not pushed to the subversion
+  repository yet. Basically it executes ``git status`` and the
+  ``git-svn-check-unpushed`` scripts for each directory in the current
+  directory.
+
+Feel free to use and improve these scripts.
+
+- Mark van Lent <mark@vlent.nl>
