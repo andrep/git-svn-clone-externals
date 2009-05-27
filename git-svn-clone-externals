@@ -68,7 +68,7 @@ function do_excludes()
 }
 
 
-git-svn show-externals|grep -vE '#|^$'|while read -a words
+git svn show-externals|grep -vE '#|^$'|while read -a words
 do
 	[ -z "${words[*]}" ] && continue
 
