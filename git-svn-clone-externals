@@ -19,7 +19,7 @@ function do_clone()
 	test -d .git_externals || return 1
 	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
 	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
-	(
+ 	(
 		cd .git_externals
 		if [ -d "$local_directory" ]; then
 			(
@@ -33,6 +33,13 @@ function do_clone()
 			echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
 			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
 			call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+			if [ -n "$revision" ]; then
+				call git svn clone "$revision" "$remote_url" "$local_directory"
+			else
+				call git svn clone "$remote_url" "$local_directory"
+			fi
+
+
 		fi
 		(
 			cd "$local_directory"
@@ -92,3 +99,4 @@ do
 	do_excludes "$local_directory"
 
 done
+
