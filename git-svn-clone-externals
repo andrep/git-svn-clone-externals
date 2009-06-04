@@ -2,7 +2,7 @@
 
 set -e
 
-toplevel_directory="$(git rev-parse --show-cdup)" 
+toplevel_directory="$(git rev-parse --show-cdup)"
 [ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
 
@@ -22,7 +22,7 @@ function do_clone()
 	(
 		cd .git_externals
 		if [ -d "$local_directory" ]; then
-			( 
+			(
 				cd "$local_directory"
 				call git svn fetch --all
 			)
@@ -34,9 +34,9 @@ function do_clone()
 			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
 			call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
 		fi
-		( 
+		(
 			cd "$local_directory"
-			call git reset --hard $branch 
+			call git reset --hard $branch
 		)
 	)
 }
@@ -64,7 +64,7 @@ function do_excludes()
 	if ! grep -q '^'"$dir"'$' "$git_excludes_path"
 	then
 		echo "$dir" >> "$git_excludes_path"
-	fi 
+	fi
 }
 
 
@@ -92,4 +92,3 @@ do
 	do_excludes "$local_directory"
 
 done
-

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+for dir in *; do
+    if [ -d $dir ]; then
+       cd $dir
+       STATUS=$(git status)
+       UNPUSHED=$(git-svn-check-unpushed)
+       if [ $(echo $STATUS|grep -c "clean") -lt 1 -o \
+	    $(echo $UNPUSHED|grep -c "No unpushed") -lt 1 ]; then
+	   echo '>>>>>>>>>>>>>>>>' $dir '<<<<<<<<<<<<<<<<'
+	   git status
+	   git-svn-check-unpushed
+	   echo '----------------------------------------'
+       else
+	   echo $dir 'is clean'
+       fi
+       cd ..
+   fi
+done

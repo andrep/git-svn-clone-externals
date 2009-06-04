@@ -1,0 +1,93 @@
+#!/usr/bin/python
+
+from commands import getoutput
+import sys
+import logging
+
+logger = logging.getLogger()
+console = logging.StreamHandler()
+formatter = logging.Formatter('%(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logger.addHandler(console)
+logger.level = logging.INFO
+
+
+def list_references():
+    """List the references in the local repo.
+
+    Return a tuple with the SHA1 of HEAD and a dictionary with the
+    SHA1 of the references as keys and the reference name as value.
+    """
+    references = getoutput('git show-ref --head')
+    HEAD_ref = None
+    refs = {}
+    for item in references.split('\n'):
+        sha1, name = item.split()
+        if name == 'HEAD':
+            HEAD_ref = sha1
+        refs[sha1] = name
+    return HEAD_ref, refs
+
+
+def commit_objects():
+    """List commit objects in reverse chronological order.
+
+    Return a dict with the SHA1 of the commits as keys and the SHA1 of
+    the parents as values.
+    """
+    commit_list = getoutput('git rev-list --all --parents')
+    commits = {}
+    for item in commit_list.split('\n'):
+        splitted_item = item.split()
+        if len(splitted_item) != 2:
+            commit = splitted_item[0]
+            parent = None
+        else:
+            commit, parent = splitted_item
+        commits[commit] = parent
+    return commits
+
+
+def find_svn_branch_name():
+    """Return the reference name of the current remote branch."""
+    head, references = list_references()
+    commits = commit_objects()
+
+    current_commit = head
+    while current_commit:
+        if current_commit in references:
+            reference_name = references[current_commit]
+            if ('remote' in reference_name or
+                'trunk' in reference_name or
+                'git-svn' in reference_name):
+                logger.debug('Found remote: %s', reference_name)
+                return reference_name
+        # find the parent of the current commit
+        # and make it the next commit to investigate
+        if current_commit in commits:
+            current_commit = commits[current_commit]
+    return None
+
+
+def find_uncommitted(svn_branch):
+    """Given the name of the remote branch, show log of the commits."""
+    output = getoutput('git log --pretty="format:%%h %%s" %s..HEAD' %
+                       svn_branch)
+    if output:
+        print 'Possible unpushed commits (against %s):' % svn_branch
+        print output
+    else:
+        print 'No unpushed commits found.'
+
+
+if __name__ == '__main__':
+    status = getoutput('git status')
+    if status.startswith('fatal'):
+        print status
+        sys.exit(1)
+    svn_branch = find_svn_branch_name()
+    if svn_branch is None:
+        print "No svn branch found"
+        sys.exit(1)
+    logger.debug('Found branch: %s', svn_branch)
+    find_uncommitted(svn_branch)

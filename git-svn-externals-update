@@ -1,0 +1,11 @@
+#!/bin/bash
+
+for dir in *; do
+    if [ -d $dir ]; then
+	cd $dir
+	echo $dir
+	git svn fetch
+	git svn rebase
+	cd ..
+    fi
+done
