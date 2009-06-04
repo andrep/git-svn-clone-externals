@@ -17,8 +17,8 @@ function call()
 function do_clone()
 {
 	test -d .git_externals || return 1
-	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tag.*\),\1,'`
-	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch\|/tag.*\),\2,'|sed 's,^/,,'`
+	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
+	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
 	(
 		cd .git_externals
 		if [ -d "$local_directory" ]; then
