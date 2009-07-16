@@ -42,6 +42,7 @@ function do_clone()
 
 		fi
 		(
+            branch="$(echo ${branch}|sed 's,/$,,')"
 			cd "$local_directory"
 			call git reset --hard $branch
 		)
@@ -77,7 +78,7 @@ function do_excludes()
 
 git svn show-externals|grep -vE '#|^$'|while read -a words
 do
-	[ -z "${words[*]}" ] && continue
+	[ -z "${words[*]}"] && continue
 
 	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
 	revision=""
@@ -87,6 +88,9 @@ do
 		revision="${words[1]}"
 		remote_url="${words[2]}"
 	fi
+
+    [ -z "${remote_url}" ] && continue
+
 	export local_directory revision remote_url
 
 	echo "$local_directory -> $remote_url"
