@@ -78,7 +78,7 @@ function do_excludes()
 
 git svn show-externals|grep -vE '#|^$'|while read -a words
 do
-	[ -z "${words[*]}"] && continue
+	[ -z "${words[*]}" ] && continue
 
 	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
 	revision=""
