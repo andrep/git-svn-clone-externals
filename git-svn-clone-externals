@@ -19,6 +19,9 @@ function do_clone()
 	test -d .git_externals || return 1
 	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
 	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+	if [[ $branch = $remote_url ]]; then
+		branch=""
+	fi
  	(
 		cd .git_externals
 		if [ -d "$local_directory" ]; then
@@ -42,9 +45,11 @@ function do_clone()
 
 		fi
 		(
-            branch="$(echo ${branch}|sed 's,/$,,')"
-			cd "$local_directory"
-			call git reset --hard $branch
+			branch="$(echo ${branch}|sed 's,/$,,')"
+			if [ -n "$branch" ]; then
+				cd "$local_directory"
+				call git reset --hard $branch
+			fi
 		)
 	)
 }
