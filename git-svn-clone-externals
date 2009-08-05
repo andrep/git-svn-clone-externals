@@ -35,13 +35,14 @@ function do_clone()
 			branchpath=$(echo $branch|cut -f1 -d/)
 			echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
 			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
-			call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
-			if [ -n "$revision" ]; then
-				call git svn clone "$revision" "$remote_url" "$local_directory"
-			else
-				call git svn clone "$remote_url" "$local_directory"
-			fi
 
+			if [ "$module" = "$remote_url" ]; then
+				# URL does not contains any trunk, branches or tags part, so we dont need
+				# additional options for git-svn
+				call git svn clone "$revision" "$module" "$local_directory"
+			else
+				call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+			fi
 
 		fi
 		(
