@@ -89,6 +89,12 @@ do
 		remote_url="${words[2]}"
 	fi
 
+    if [ -n "$USE_SSH" ]; then
+        echo "Rewriting url to use SVN+SSH."
+        shopt -s extglob
+        remote_url="${remote_url/+(http|https)/svn+ssh}"
+    fi
+
     [ -z "${remote_url}" ] && continue
 
 	export local_directory revision remote_url
