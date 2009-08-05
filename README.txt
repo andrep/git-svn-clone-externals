@@ -67,3 +67,13 @@ go. Therefore I creates some additional scripts.
 Feel free to use and improve these scripts.
 
 - Mark van Lent <mark@vlent.nl>
+
+Options
+=======
+
+* External repository's url can be rewritten, to use SVN+SSH instead of
+  plain HTTP or HTTPS. To do so, do `export USE_SSH=yes` in your environment.
+  This can be useful if you use ssh authentication, but other developers don't.
+
+- Alexander Artemenko <svetlyak.40wt@gmail.com>
+
