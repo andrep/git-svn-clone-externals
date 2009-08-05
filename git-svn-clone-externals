@@ -59,6 +59,7 @@ function do_link()
 	dir="$1"
 	base="$(dirname $dir)"
 	(
+		mkdir -p "$base"
 		cd $base
 		rel=$(git rev-parse --show-cdup)
 		ln -sf ${rel}.git_externals/"$dir"
