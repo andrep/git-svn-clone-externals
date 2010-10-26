@@ -33,6 +33,7 @@ function do_clone()
 			tags="tags"
 			brch="branches"
 			branchpath=$(echo $branch|cut -f1 -d/)
+      branch=$(echo $branch|cut -f2 -d/)
 			echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
 			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
 
