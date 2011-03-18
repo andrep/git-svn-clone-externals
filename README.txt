@@ -74,6 +74,9 @@ Options
 * External repository's url can be rewritten, to use SVN+SSH instead of
   plain HTTP or HTTPS. To do so, do `export USE_SSH=yes` in your environment.
   This can be useful if you use ssh authentication, but other developers don't.
+* If you don't want to pull all external repositories, you can create a
+  .git_externals_exclude file which contains the local paths to be excluded,
+  one per line, the same way they show up on the first field of git svn show-externals
 
 - Alexander Artemenko <svetlyak.40wt@gmail.com>
 
