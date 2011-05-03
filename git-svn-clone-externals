@@ -17,8 +17,9 @@ function call()
 function do_clone()
 {
 	test -d .git_externals || return 1
-	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+	module=`echo $remote_url|sed 's,\(.*\)\(/trunk.*\|/branch.*\|/tag.*\),\1,'`
+	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk.*\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+        suffix=`echo $branch|sed 's,^\(trunk\|branches\|tags\)\(.*\),\2,'` 
 	if [[ $branch = $remote_url ]]; then
 		branch=""
 	fi
@@ -41,7 +42,7 @@ function do_clone()
 				# additional options for git-svn
 				call git svn clone "$revision" "$module" "$local_directory"
 			else
-				call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+				call git svn clone "$revision" "$module" -T trunk$suffix -b $brch$suffix -t $tags$suffix "$local_directory"
 			fi
 
 		fi
@@ -49,7 +50,7 @@ function do_clone()
 			branch="$(echo ${branch}|sed 's,/$,,')"
 			if [ -n "$branch" ]; then
 				cd "$local_directory"
-				call git reset --hard $branch
+				call git reset --hard `echo $branch | sed "s,$suffix,,"`
 			fi
 		)
 	)
