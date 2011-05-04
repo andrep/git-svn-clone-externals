@@ -50,7 +50,8 @@ function do_clone()
 			branch="$(echo ${branch}|sed 's,/$,,')"
 			if [ -n "$branch" ]; then
 				cd "$local_directory"
-				call git reset --hard `echo $branch | sed "s,$suffix,,"`
+				branchbase=`echo $branch | sed "s,$suffix,,"`
+				call git reset --hard $branchbase
 			fi
 		)
 	)
