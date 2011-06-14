@@ -5,6 +5,9 @@ set -e
 toplevel_directory="$(git rev-parse --show-cdup)"
 [ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
+# Specify revision in command line (e.g. -rHEAD)
+# It only affects those svn externals that are not tied to a specific revision
+revision="$1"
 
 function call()
 {
@@ -27,7 +30,7 @@ function do_clone()
 		if [ -d "$local_directory" ]; then
 			(
 				cd "$local_directory"
-				call git svn fetch --all
+				call git svn fetch "$revision"
 			)
 		else
 			tags="tags"
@@ -107,7 +110,6 @@ do
 	[ -z "${words[*]}" ] && continue
 
 	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
-	revision=""
 	remote_url="${words[1]}"
 
     check_excluded=$(is_excluded $local_directory)
@@ -139,5 +141,4 @@ do
     fi
 
 done
-
 
