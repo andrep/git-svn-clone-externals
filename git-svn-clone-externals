@@ -96,8 +96,14 @@ function is_excluded()
 }
 
 
-git svn show-externals|grep -vE '#|^$'|while read -a words
+declare -a lines
+while read -a words ; do  
+  lines[${#lines[@]}]=${words[*]}
+done < <(git svn show-externals | grep -vE '#|^$')
+
+for words in "${lines[@]}"
 do
+  words=($words)
 	[ -z "${words[*]}" ] && continue
 
 	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
@@ -133,4 +139,5 @@ do
     fi
 
 done
+
 
