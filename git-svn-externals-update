@@ -1,11 +1,11 @@
 #!/bin/bash
 
-for dir in *; do
+for dir in `find .git_externals/ -name .git -type d -exec dirname {} \;`; do
     if [ -d $dir ]; then
-	cd $dir
+	pushd $dir
 	echo $dir
 	git svn fetch
 	git svn rebase
-	cd ..
+	popd
     fi
 done
