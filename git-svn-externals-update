@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for dir in `find .git_externals/ -name .git -type d -exec dirname {} \;`; do
+for dir in `find . -regex "./.*/.*.git" -type d -exec dirname {} \;`; do
     if [ -d $dir ]; then
 	pushd $dir
 	echo $dir
