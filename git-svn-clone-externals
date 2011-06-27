@@ -31,6 +31,7 @@ function do_clone()
 			(
 				cd "$local_directory"
 				call git svn fetch "$revision"
+        call git svn rebase
 			)
 		else
 			tags="tags"
