@@ -96,7 +96,8 @@ function is_excluded()
 }
 
 
-git svn show-externals|grep -vE '#|^$'|while read -a words
+git svn show-externals|grep -vE '#|^$'| \
+	sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/'|while read -a words
 do
 	[ -z "${words[*]}" ] && continue
 
