@@ -6,10 +6,10 @@ toplevel_directory="$(git rev-parse --show-cdup)"
 find . -type d -name .git -depth 2 | while read gitdir; do
 	dir=$(dirname "$gitdir")
     if [ -d $dir ]; then
-	pushd $dir
-	echo $dir
-	git svn fetch
-	git svn rebase
-	popd
+        pushd $dir 1>/dev/null 2>/dev/null
+        echo $dir
+        git svn fetch
+        git svn rebase
+        popd 1>/dev/null 2>/dev/null
     fi
 done
