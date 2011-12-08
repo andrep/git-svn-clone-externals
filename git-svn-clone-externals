@@ -16,14 +16,14 @@ function call()
 
 function do_clone()
 {
-	test -d .git_externals || return 1
+	#test -d .git_externals || return 1
 	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
 	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
 	if [[ $branch = $remote_url ]]; then
 		branch=""
 	fi
  	(
-		cd .git_externals
+		#cd .git_externals
 		if [ -d "$local_directory" ]; then
 			(
 				cd "$local_directory"
@@ -71,10 +71,10 @@ function do_excludes()
 {
 	dir="$1"
 	git_excludes_path=.git/info/exclude
-	if ! grep -q '^.git_externals$' "$git_excludes_path"
-	then
-		echo .git_externals >> "$git_excludes_path"
-	fi
+	#if ! grep -q '^.git_externals$' "$git_excludes_path"
+	#then
+	#	echo .git_externals >> "$git_excludes_path"
+	#fi
 
 	if ! grep -q '^'"$dir"'$' "$git_excludes_path"
 	then
@@ -96,8 +96,9 @@ function is_excluded()
 }
 
 
-git svn show-externals|grep -vE '#|^$'| \
-	sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/'|while read -a words
+git svn show-externals|grep -vE '#|^$' | \
+	sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
+    while read -a words
 do
 	[ -z "${words[*]}" ] && continue
 
@@ -126,10 +127,10 @@ do
         echo "$local_directory -> $remote_url"
 
         dir=`dirname $local_directory`
-        [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
+        #[ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
 
         do_clone "$revision" "$remote_url" "$local_directory" || exit
-        do_link "$local_directory"
+        #do_link "$local_directory"
         do_excludes "$local_directory"
     fi
 
