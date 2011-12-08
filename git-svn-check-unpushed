@@ -22,10 +22,11 @@ def list_references():
     HEAD_ref = None
     refs = {}
     for item in references.split('\n'):
-        sha1, name = item.split()
-        if name == 'HEAD':
-            HEAD_ref = sha1
-        refs[sha1] = name
+        if len(item) != 0:
+            sha1, name = item.split()
+            if name == 'HEAD':
+                HEAD_ref = sha1
+            refs[sha1] = name
     return HEAD_ref, refs
 
 
