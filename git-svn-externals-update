@@ -3,7 +3,7 @@
 toplevel_directory="$(git rev-parse --show-cdup)"
 [ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
-find . -type d -name .git -depth 2 | while read gitdir; do
+find . -type d -name .git -mindepth 2 | while read gitdir; do
 	dir=$(dirname "$gitdir")
     if [ -d $dir ]; then
         pushd $dir 1>/dev/null 2>/dev/null
