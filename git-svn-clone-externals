@@ -5,6 +5,7 @@ set -e
 toplevel_directory="$(git rev-parse --show-cdup)"
 [ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
 
+gitignore_file=""
 
 function call()
 {
@@ -145,6 +146,49 @@ function do_clone_externals()
         fi
 
     done
+
+    if [ -n "$gitignore_file" ]; then
+        cat $gitignore_file >> .git/info/exclude
+    fi
 }
+
+function usage()
+{
+    echo "Usage: `basename $0` [-i git-ignore-file]"
+    echo "  -i git-ignore-file : git-ignore-file must exist. $0 will add its content to exclude informations"
+    exit 2
+}
+
+args=`getopt i: $*`
+ret=$?
+if [ $ret -ne 0 ]; then
+    usage
+fi
+set -- $args
+
+for _a; do
+    case "$_a" in
+        -i)
+            _ignorefile="$2"
+            shift
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+    esac
+done
+
+if [ -n "$_ignorefile" -a ! -f "$_ignorefile" ]; then
+    usage
+fi
+if [ -n "$_ignorefile" ]; then
+    _ignorefile=`realpath -q $_ignorefile`
+    if [ $? -ne 0 ]; then
+        usage
+    fi
+fi
+gitignore_file="$_ignorefile"
 
 do_clone_externals
