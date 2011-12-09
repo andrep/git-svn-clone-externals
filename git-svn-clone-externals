@@ -156,7 +156,11 @@ function do_clone_externals()
         done
 
     if [ -n "$gitignore_file" ]; then
-        cat $gitignore_file >> .git/info/exclude
+        _base=$(basename $gitignore_file)
+        if ! grep -q "^# $_base$" .git/info/exclude; then
+            echo "# $_base" >> .git/info/exclude
+            cat $gitignore_file >> .git/info/exclude
+        fi
     fi
 }
 
