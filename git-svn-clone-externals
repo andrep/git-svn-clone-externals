@@ -10,86 +10,86 @@ use_symlinks=0
 
 function call()
 {
-	cmd="$@"
-	echo "$cmd"
-	eval "$cmd"
-	return "$?"
+    cmd="$@"
+    echo "$cmd"
+    eval "$cmd"
+    return "$?"
 }
 
 function do_clone()
 {
     if [ $use_symlinks -ne 0 ]; then
-	    test -d .git_externals || return 1
+        test -d .git_externals || return 1
     fi
     revision="$1"
     remote_url="$2"
     local_directory="$3"
-	module=`echo $remote_url | sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-	branch=`echo $remote_url | sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,' | sed 's,^/,,'`
-	if [[ $branch = $remote_url ]]; then
-		branch=""
-	fi
- 	(
-        if [ $use_symlinks -ne 0 ]; then
-		    cd .git_externals
+    module=`echo $remote_url | sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
+    branch=`echo $remote_url | sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,' | sed 's,^/,,'`
+    if [[ $branch = $remote_url ]]; then
+        branch=""
+    fi
+    (
+    if [ $use_symlinks -ne 0 ]; then
+        cd .git_externals
+    fi
+    if [ -d "$local_directory" ]; then
+        (
+        cd "$local_directory"
+        call git svn fetch --all
+        )
+    else
+        tags="tags"
+        brch="branches"
+        branchpath=$(echo $branch | cut -f1 -d/)
+        echo $tags | grep $branchpath >/dev/null 2>&1 && tags=$branchpath
+        echo $brch | grep $branchpath >/dev/null 2>&1 && brch=$branchpath
+
+        if [ "$module" = "$remote_url" ]; then
+            # URL does not contains any trunk, branches or tags part, so we dont need
+            # additional options for git-svn
+            call git svn clone "$revision" "$module" "$local_directory"
+        else
+            call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
         fi
-		if [ -d "$local_directory" ]; then
-			(
-				cd "$local_directory"
-				call git svn fetch --all
-			)
-		else
-			tags="tags"
-			brch="branches"
-			branchpath=$(echo $branch | cut -f1 -d/)
-			echo $tags | grep $branchpath >/dev/null 2>&1 && tags=$branchpath
-			echo $brch | grep $branchpath >/dev/null 2>&1 && brch=$branchpath
 
-			if [ "$module" = "$remote_url" ]; then
-				# URL does not contains any trunk, branches or tags part, so we dont need
-				# additional options for git-svn
-				call git svn clone "$revision" "$module" "$local_directory"
-			else
-				call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
-			fi
-
-		fi
-		(
-			branch="$(echo ${branch} | sed 's,/$,,')"
-			if [ -n "$branch" ]; then
-				cd "$local_directory"
-				call git reset --hard $branch
-			fi
-		)
-	)
+    fi
+    (
+    branch="$(echo ${branch} | sed 's,/$,,')"
+    if [ -n "$branch" ]; then
+        cd "$local_directory"
+        call git reset --hard $branch
+    fi
+    )
+    )
 }
 
 function do_link()
 {
-	dir="$1"
-	base="$(dirname $dir)"
-	(
-		mkdir -p "$base"
-		cd $base
-		rel=$(git rev-parse --show-cdup)
-		ln -sf ${rel}.git_externals/"$dir"
-	)
+    dir="$1"
+    base="$(dirname $dir)"
+    (
+    mkdir -p "$base"
+    cd $base
+    rel=$(git rev-parse --show-cdup)
+    ln -sf ${rel}.git_externals/"$dir"
+    )
 }
 
 function do_excludes()
 {
-	dir="$1"
-	git_excludes_path=.git/info/exclude
+    dir="$1"
+    git_excludes_path=.git/info/exclude
     if [ $use_symlinks -ne 0 ]; then
-	    if ! grep -q '^.git_externals$' "$git_excludes_path"
+        if ! grep -q '^.git_externals$' "$git_excludes_path"
         then
             echo .git_externals >> "$git_excludes_path"
         fi
     fi
-	if ! grep -q '^'"$dir"'$' "$git_excludes_path"
-	then
-		echo "$dir" >> "$git_excludes_path"
-	fi
+    if ! grep -q '^'"$dir"'$' "$git_excludes_path"
+    then
+        echo "$dir" >> "$git_excludes_path"
+    fi
 }
 
 function is_excluded()
@@ -109,51 +109,51 @@ function is_excluded()
 function do_clone_externals()
 {
     git svn show-externals | grep -vE '#|^$' | \
-    sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
-    while read -a words
-    do
-        [ -z "${words[*]}" ] && continue
+        sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
+        while read -a words
+        do
+            [ -z "${words[*]}" ] && continue
 
-        local_directory="$(echo ${words[0]} | sed 's,^/,,')"
-        revision=""
-        remote_url="${words[1]}"
+            local_directory="$(echo ${words[0]} | sed 's,^/,,')"
+            revision=""
+            remote_url="${words[1]}"
 
-        check_excluded=$(is_excluded $local_directory)
+            check_excluded=$(is_excluded $local_directory)
 
-        if [ $check_excluded -eq 0 ] ; then
-            if [ -n "${words[2]}" ]; then
-                revision="${words[1]}"
-                remote_url="${words[2]}"
+            if [ $check_excluded -eq 0 ] ; then
+                if [ -n "${words[2]}" ]; then
+                    revision="${words[1]}"
+                    remote_url="${words[2]}"
+                fi
+
+                if [ -n "$USE_SSH" ]; then
+                    echo "Rewriting url to use SVN+SSH."
+                    shopt -s extglob
+                    remote_url="${remote_url/#(http|https)/svn+ssh}"
+                fi
+
+                [ -z "${remote_url}" ] && continue
+
+                echo "$local_directory -> $remote_url"
+
+                dir=`dirname $local_directory`
+                if [ $use_symlinks -ne 0 ]; then
+                    [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
+                fi
+
+                do_clone "$revision" "$remote_url" "$local_directory" || exit
+                if [ $use_symlinks -ne 0 ]; then
+                    do_link "$local_directory"
+                fi
+                do_excludes "$local_directory"
+
+                #recurse svn:externals
+                pushd $local_directory 1>/dev/null 2>/dev/null
+                do_clone_externals
+                popd 1>/dev/null 2>/dev/null
             fi
 
-            if [ -n "$USE_SSH" ]; then
-                echo "Rewriting url to use SVN+SSH."
-                shopt -s extglob
-                remote_url="${remote_url/#(http|https)/svn+ssh}"
-            fi
-
-            [ -z "${remote_url}" ] && continue
-
-            echo "$local_directory -> $remote_url"
-
-            dir=`dirname $local_directory`
-            if [ $use_symlinks -ne 0 ]; then
-                [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
-            fi
-
-            do_clone "$revision" "$remote_url" "$local_directory" || exit
-            if [ $use_symlinks -ne 0 ]; then
-                do_link "$local_directory"
-            fi
-            do_excludes "$local_directory"
-
-            #recurse svn:externals
-            pushd $local_directory 1>/dev/null 2>/dev/null
-            do_clone_externals
-            popd 1>/dev/null 2>/dev/null
-        fi
-
-    done
+        done
 
     if [ -n "$gitignore_file" ]; then
         cat $gitignore_file >> .git/info/exclude
