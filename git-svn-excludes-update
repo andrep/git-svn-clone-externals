@@ -1,0 +1,88 @@
+#!/usr/local/bin/bash
+
+set -e
+
+toplevel_directory="$(git rev-parse --show-cdup)"
+[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
+
+gitignore_file=""
+
+function is_excluded()
+{
+    local result=0
+    if [ -f .git_externals_exclude ] ; then
+        matches=`grep -v "^#" .git_externals_exclude | grep "^/$1$"|wc -l`
+        if [ $matches -gt 0 ] ; then
+            local result=1
+        fi
+    fi
+    echo $result 
+    return
+}
+
+
+function do_excludes_update()
+{
+    _root="$1"
+    git svn show-externals | grep -vE '#|^$' | \
+        sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
+        while read -a words;  do
+            [ -z "${words[*]}" ] && continue
+
+            local_directory="$(echo ${words[0]} | sed 's,^/,,')"
+            [ -z "$local_directory" ] && continue
+
+            check_excluded=$(is_excluded $local_directory)
+            if [ $check_excluded -eq 0 ] ; then
+                #recurse svn:externals
+                pushd $local_directory 2>&1 >/dev/null
+                do_excludes_update $_root
+                popd 2>&1 >/dev/null
+            fi
+
+        done
+
+        _pwd=`pwd`
+        _pwd="${_pwd/${_root}/}"
+        echo ".${_pwd}"
+        cat $gitignore_file |  while read excopt; do
+            if ! grep -q "^${excopt}" .git/info/exclude; then
+                echo " adding \"${excopt}\" exclude pattern"
+                cat >> .git/info/exclude << EOF
+${excopt}
+EOF
+            fi
+        done
+}
+
+function usage()
+{
+    echo "Usage: `basename $0` -i git-ignore-file"
+    echo "  -i git-ignore-file : git-ignore-file must exist. $0 will add its content to exclude informations"
+    exit 2
+}
+
+# Main
+
+while getopts "i:" _a; do
+    case $_a in
+        i)
+            _ignorefile="$OPTARG"
+            ;;
+        \?)
+            usage
+            ;;
+    esac
+done
+
+if [ -z "$_ignorefile" -o ! -f "$_ignorefile" ]; then
+    usage
+fi
+_ignorefile=`realpath -q $_ignorefile`
+if [ $? -ne 0 ]; then
+    usage
+fi
+gitignore_file="$_ignorefile"
+
+_root=`pwd`
+do_excludes_update $_root
