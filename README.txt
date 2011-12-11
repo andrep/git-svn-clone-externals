@@ -80,7 +80,7 @@ Options
 
 - Alexander Artemenko <svetlyak.40wt@gmail.com>
 
-* git-svn-clone-externals
+* ``git-svn-clone-externals``
   * -i git-ignore-file : For some reason, I need to add some ignore to the root repository
     and to each svn:externals project. the git-ignore-file format is just like a .gitignore
     file format. Its content will be added to .git/info/exclude for each repository.
@@ -92,5 +92,16 @@ Options
      + ExtRepo1/ (svn:externals in RootRepo/)
      | + ExtRepo11/ (svn:externals in ExtRepo1/)
      ...
+
+* ``git-svn-excludes-update``
+  * -i git-ignore-file : this options is required for this script. For each exclude pattern
+    option in the file, the script will check if it exists in .git/info/exclude. The script
+    check each svn:externals recursively.
+    git-ignore-file sample :
+     $ cat git-ignore-file
+     *.o
+     *.a
+     *~
+     # end-of-file
 
 - Guillaume Bibaut <github@iaelu.net>
