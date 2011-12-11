@@ -156,11 +156,14 @@ function do_clone_externals()
         done
 
     if [ -n "$gitignore_file" ]; then
-        _base=$(basename $gitignore_file)
-        if ! grep -q "^# $_base$" .git/info/exclude; then
-            echo "# $_base" >> .git/info/exclude
-            cat $gitignore_file >> .git/info/exclude
-        fi
+        cat $gitignore_file |  while read excopt; do
+            if ! grep -q "^${excopt}" .git/info/exclude; then
+                echo " adding \"${excopt}\" exclude pattern"
+                cat >> .git/info/exclude << EOF
+${excopt}
+EOF
+            fi
+        done
     fi
 }
 
