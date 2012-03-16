@@ -1,19 +1,28 @@
 #!/bin/bash
 
-for dir in *; do
+
+toplevel_directory="$(git rev-parse --show-cdup)"
+[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
+
+find . -type d -name .git -mindepth 2 | while read gitdir; do
+    dir=$(dirname "$gitdir")
     if [ -d $dir ]; then
-       cd $dir
-       STATUS=$(git status)
-       UNPUSHED=$(git-svn-check-unpushed)
-       if [ $(echo $STATUS|grep -c "clean") -lt 1 -o \
-	    $(echo $UNPUSHED|grep -c "No unpushed") -lt 1 ]; then
-	   echo '>>>>>>>>>>>>>>>>' $dir '<<<<<<<<<<<<<<<<'
-	   git status
-	   git-svn-check-unpushed
-	   echo '----------------------------------------'
-       else
-	   echo $dir 'is clean'
-       fi
-       cd ..
-   fi
+        pushd $dir 1>/dev/null 2>/dev/null
+        STATUS=$(git status)
+        UNPUSHED=$(git-svn-check-unpushed)
+        if [ $(echo $STATUS|grep -c "clean") -lt 1 -o \
+            $(echo $UNPUSHED|grep -c "No unpushed") -lt 1 ]; then
+            echo '>>>>>>>>>>>>>>>>' $dir '<<<<<<<<<<<<<<<<'
+            cat >&1 << EOF
+$STATUS
+EOF
+            cat >&1 << EOF
+$UNPUSHED
+EOF
+            echo '----------------------------------------'
+        else
+            echo $dir 'is clean'
+        fi
+        popd 1>/dev/null 2>/dev/null
+    fi
 done
