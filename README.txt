@@ -81,12 +81,14 @@ Options
 - Alexander Artemenko <svetlyak.40wt@gmail.com>
 
 * ``git-svn-clone-externals``
-  * -i git-ignore-file : For some reason, I need to add some ignore to the root repository
-    and to each svn:externals project. the git-ignore-file format is just like a .gitignore
-    file format. Its content will be added to .git/info/exclude for each repository.
-  * -l : use symlinks in .git_externals/ for each svn:externals repository. The default is
-    off, which means it does not create symlinks, but direct folder in the main repository.
-    Everything should just work the same with modified scripts from this 'freebsd' branch.
+  * -i git-ignore-file : For some reason, I need to add some ignore to
+    the root repository and to each svn:externals project. the git-ignore-file
+    format is just like a .gitignore file format. Its content will be added to
+    .git/info/exclude for each repository.
+  * -l : use symlinks in .git_externals/ for each svn:externals repository.
+    The default is off, which means it does not create symlinks, but direct
+    folder in the main repository. Everything should just work the same with
+    modified scripts from this 'freebsd' branch.
   * Recursive svn:externals clone: 
     RootRepo/
      + ExtRepo1/ (svn:externals in RootRepo/)
@@ -94,9 +96,9 @@ Options
      ...
 
 * ``git-svn-excludes-update``
-  * -i git-ignore-file : this options is required for this script. For each exclude pattern
-    option in the file, the script will check if it exists in .git/info/exclude. The script
-    check each svn:externals recursively.
+  * -i git-ignore-file : this options is required for this script. For each
+    exclude pattern option in the file, the script will check if it exists in
+    .git/info/exclude. The script check each svn:externals recursively.
     git-ignore-file sample :
      $ cat git-ignore-file
      *.o
