@@ -97,11 +97,11 @@ function is_excluded()
 
 
 git svn show-externals|grep -vE '#|^$'| \
-	sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/'|while read -a words
+	sed 's/\([a-zA-Z_\.\-]*\)[ ]*\(-r\)[ ]*\([0-9]\{1,\}\)/\1 \2\3/'|while read -a words
 do
 	[ -z "${words[*]}" ] && continue
 
-	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
+	local_directory="$(echo ${words[0]}${words[3]}|sed 's,^/,,')"
 	revision=""
 	remote_url="${words[1]}"
 
