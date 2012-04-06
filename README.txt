@@ -24,6 +24,8 @@ integration scripts that I've found.  I absolutely do welcome those features,
 but I figured I'd push this out since it works for me and is probably useful
 for others.
 
+NB: This assumes you have passwordless svn.
+
 Enjoy,
 
 - Andre Pang <ozone@algorithm.com.au>
