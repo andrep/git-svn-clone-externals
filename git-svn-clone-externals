@@ -8,78 +8,78 @@ toplevel_directory="$(git rev-parse --show-cdup)"
 
 function call()
 {
-	cmd="$@"
-	echo "$cmd"
-	eval "$cmd"
-	return "$?"
+    cmd="$@"
+    echo "$cmd"
+    eval "$cmd"
+    return "$?"
 }
 
 function do_clone()
 {
-	test -d .git_externals || return 1
-	module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-	branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
-	if [[ $branch = $remote_url ]]; then
-		branch=""
-	fi
- 	(
-		cd .git_externals
-		if [ -d "$local_directory" ]; then
-			(
-				cd "$local_directory"
-				call git svn fetch --all
-			)
-		else
-			tags="tags"
-			brch="branches"
-			branchpath=$(echo $branch|cut -f1 -d/)
-			echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
-			echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
+    test -d .git_externals || return 1
+    module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
+    branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+    if [[ $branch = $remote_url ]]; then
+        branch=""
+    fi
+     (
+        cd .git_externals
+        if [ -d "$local_directory" ]; then
+            (
+                cd "$local_directory"
+                call git svn fetch --all
+            )
+        else
+            tags="tags"
+            brch="branches"
+            branchpath=$(echo $branch|cut -f1 -d/)
+            echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
+            echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
 
-			if [ "$module" = "$remote_url" ]; then
-				# URL does not contains any trunk, branches or tags part, so we dont need
-				# additional options for git-svn
-				call git svn clone "$revision" "$module" "$local_directory"
-			else
-				call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
-			fi
+            if [ "$module" = "$remote_url" ]; then
+                # URL does not contains any trunk, branches or tags part, so we dont need
+                # additional options for git-svn
+                call git svn clone "$revision" "$module" "$local_directory"
+            else
+                call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
+            fi
 
-		fi
-		(
-			branch="$(echo ${branch}|sed 's,/$,,')"
-			if [ -n "$branch" ]; then
-				cd "$local_directory"
-				call git reset --hard $branch
-			fi
-		)
-	)
+        fi
+        (
+            branch="$(echo ${branch}|sed 's,/$,,')"
+            if [ -n "$branch" ]; then
+                cd "$local_directory"
+                call git reset --hard $branch
+            fi
+        )
+    )
 }
 
 function do_link()
 {
-	dir="$1"
-	base="$(dirname $dir)"
-	(
-		mkdir -p "$base"
-		cd $base
-		rel=$(git rev-parse --show-cdup)
-		ln -sf ${rel}.git_externals/"$dir"
-	)
+    dir="$1"
+    base="$(dirname $dir)"
+    (
+        mkdir -p "$base"
+        cd $base
+        rel=$(git rev-parse --show-cdup)
+        ln -sf ${rel}.git_externals/"$dir"
+    )
 }
 
 function do_excludes()
 {
-	dir="$1"
-	git_excludes_path=.git/info/exclude
-	if ! grep -q '^.git_externals$' "$git_excludes_path"
-	then
-		echo .git_externals >> "$git_excludes_path"
-	fi
+    dir="$1"
+    git_excludes_path=.git/info/exclude
+    if ! grep -q '^.git_externals$' "$git_excludes_path"
+    then
+        echo .git_externals >> "$git_excludes_path"
+    fi
 
-	if ! grep -q '^'"$dir"'$' "$git_excludes_path"
-	then
-		echo "$dir" >> "$git_excludes_path"
-	fi
+    if ! grep -q '^'"$dir"'$' "$git_excludes_path"
+    then
+        echo "$dir" >> "$git_excludes_path"
+    fi
 }
 
 function is_excluded()
@@ -91,28 +91,33 @@ function is_excluded()
             local result=1
         fi
     fi
-    echo $result 
+    echo $result
     return
 }
 
 
-git svn show-externals|grep -vE '#|^$'| \
-	sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/'|while read -a words
+git svn show-externals | grep -vE '#|^$' | \
+    sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
+    while read svn_externals
 do
-	[ -z "${words[*]}" ] && continue
 
-	local_directory="$(echo ${words[0]}|sed 's,^/,,')"
-	revision=""
-	remote_url="${words[1]}"
+    number_fields="$(echo ${svn_externals}|awk '{print NF}')"
+    case $number_fields in
+        2)
+            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
+            revision=""
+            remote_url="$(echo ${svn_externals} | awk '{print $2}')"
+            ;;
+        3)
+            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
+            revision=""$(echo ${svn_externals} | awk '{print $2}')
+            remote_url="$(echo ${svn_externals} | awk '{print $3}')"
+            ;;
+        *) continue ;;
+    esac
 
     check_excluded=$(is_excluded $local_directory)
-
     if [ $check_excluded -eq 0 ] ; then
-        if [ -n "${words[2]}" ]; then
-            revision="${words[1]}"
-            remote_url="${words[2]}"
-        fi
-
         if [ -n "$USE_SSH" ]; then
             echo "Rewriting url to use SVN+SSH."
             shopt -s extglob
@@ -134,4 +139,3 @@ do
     fi
 
 done
-
