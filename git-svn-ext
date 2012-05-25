@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from commands import getoutput
 import sys
@@ -79,8 +79,8 @@ def find_uncommitted(svn_branch):
     else:
         print 'No unpushed commits found.'
 
-
-if __name__ == '__main__':
+def check_unpushed_handler():
+    """Check if any local externals have any unpushed changes"""
     status = getoutput('git status')
     if status.startswith('fatal'):
         print status
@@ -91,3 +91,32 @@ if __name__ == '__main__':
         sys.exit(1)
     logger.debug('Found branch: %s', svn_branch)
     find_uncommitted(svn_branch)
+
+def usage():
+    """Descriptive text of all options"""
+    print ""
+    print "Usage: " + sys.argv[0] + " [check-unpushed]"
+    print ""
+    print "  check-unpushed: " + check_unpushed_handler.__doc__
+    print ""
+
+handler_map = {}
+handler_map['check-unpushed'] = check_unpushed_handler
+
+if __name__ == '__main__':
+
+    handler = ""
+
+    try:
+        sub_command = sys.argv[1]
+
+        if handler_map.has_key(sub_command):
+            handler = handler_map[sub_command]
+        else:
+            raise "Invalid sub command"
+
+    except:
+        usage()
+        sys.exit(1)
+
+    handler()
