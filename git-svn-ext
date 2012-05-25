@@ -18,7 +18,6 @@ logger.level = logging.INFO
 git_svn_ext_fullpath = os.path.abspath(sys.argv[0])
 excludes_file = ".git_external_excludes"
 
-
 ##################### Helper Methods #####################
 
 def list_references():
@@ -31,10 +30,12 @@ def list_references():
     HEAD_ref = None
     refs = {}
     for item in references.split('\n'):
-        sha1, name = item.split()
-        if name == 'HEAD':
-            HEAD_ref = sha1
-        refs[sha1] = name
+        stuff = item.split()
+        if len(stuff) == 2:
+            (sha1, name) = stuff
+            if name == 'HEAD':
+                HEAD_ref = sha1
+            refs[sha1] = name
     return HEAD_ref, refs
 
 
@@ -80,13 +81,15 @@ def find_svn_branch_name():
 
 def find_uncommitted(svn_branch):
     """Given the name of the remote branch, show log of the commits."""
+
+    # One line commit of uncommitted commits
+    results = []
     output = getoutput('git log --pretty="format:%%h %%s" %s..HEAD' %
                        svn_branch)
     if output:
-        print 'Possible unpushed commits (against %s):' % svn_branch
-        print output
-    else:
-        print 'No unpushed commits found.'
+        results += output.split('\n')
+
+    return results
 
 def exit_if_not_toplevel():
     """exit if not run from the top level git directory"""
@@ -367,37 +370,56 @@ def update_handler():
                     os.chdir(current_dir)
 
 
+# TODO: would it be nice to have a recursive option?
+# otherwise, you have to run it from the root dir
 def check_unpushed_handler():
-    """Check if a local external has any unpushed changes"""
+    """Check if a local external has any unpushed commits"""
+
     status = getoutput('git status')
     if status.startswith('fatal'):
         print status
         sys.exit(1)
     svn_branch = find_svn_branch_name()
     if svn_branch is None:
-        print "No svn branch found"
+        print "Warning: no svn branch found for: " + os.getcwd()
         sys.exit(1)
     logger.debug('Found branch: %s', svn_branch)
-    find_uncommitted(svn_branch)
 
+    commits = find_uncommitted(svn_branch)
+
+    if len(commits) > 0:
+        print 'Possible unpushed commits (against %s):' % svn_branch
+        print "\n".join(commits)
+    else:
+        print 'No unpushed commits found.'
 
 def check_handler():
-    """Run check-unpushed for all externals"""
-    for dir in os.listdir("."):
-        if os.path.isdir(dir) and dir[0] != ".":
-            os.chdir(dir)
-            status = getoutput("git status")
-            unpushed = getoutput(git_svn_ext_fullpath + " check-unpushed")
-            if not re.search("clean", status) or not re.search("No unpushed", unpushed):
-                print ">>>>>>>>>>>>>>>> %s <<<<<<<<<<<<<<<<" % dir
-                os.system("git status")
-                os.system(git_svn_ext_fullpath + " check-unpushed")
-                print "----------------------------------------"
-            else:
-                print dir + " is clean"
+    """Check for local externals that have unpushed commits"""
 
-            os.chdir("..")
+    exit_if_not_toplevel()
 
+    git_ext_dir = ".git_externals"
+    if os.path.isdir(git_ext_dir):
+        for external in os.listdir(git_ext_dir):
+            gitdir = os.path.join(git_ext_dir, external, ".git")
+            if os.path.isdir(gitdir):
+                dir = os.path.dirname(gitdir)
+                if os.path.isdir(dir):
+                    current_dir = os.getcwd()
+                    os.chdir(dir)
+
+                    status = getoutput("git status")
+                    unpushed = getoutput(git_svn_ext_fullpath + " check-unpushed")
+                    if not re.search("clean", status) or not re.search("No unpushed", unpushed):
+                        print ">>>>>>>>>>>>>>>> %s <<<<<<<<<<<<<<<<" % dir
+                        # Run these again to get color output
+                        os.system("git status")
+                        os.system(git_svn_ext_fullpath + " check-unpushed")
+                        print "----------------------------------------"
+                    else:
+                        print dir + " is clean"
+
+                    os.chdir(current_dir)
 
 
 # TODO: use a structure that preserves order (for usage)
