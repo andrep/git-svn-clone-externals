@@ -340,7 +340,7 @@ def get_externals_paths():
 ########### sub-command handlers #############
 
 
-def clone_handler():
+def clone_handler(args):
     """git-svn clone of all svn externals into .git_externals (can blow aways changes when rerunning!)"""
 
     exit_if_not_toplevel()
@@ -364,23 +364,18 @@ def clone_handler():
         do_excludes(external.external_dir + external.local_dir)
 
 
-def update_handler():
+def update_handler(args):
     """Update all svn externals"""
 
     exit_if_not_toplevel()
 
-    for dir in get_externals_paths():
-        current_dir = os.getcwd()
-        os.chdir(dir)
-        print dir
-        os.system("git svn fetch")
-        os.system("git svn rebase")
-        os.chdir(current_dir)
+    # Must pass in as keywords to fit the interface
+    for_all_handler("git svn rebase".split())
 
 
 # TODO: would it be nice to have a recursive option?
 # otherwise, you have to run it from the root dir
-def check_unpushed_handler():
+def check_unpushed_handler(args):
     """Check if a local external has any unpushed commits"""
 
     status = getoutput('git status')
@@ -401,7 +396,7 @@ def check_unpushed_handler():
     else:
         print 'No unpushed commits found.'
 
-def check_handler():
+def check_handler(args):
     """Check for local externals that have unpushed commits"""
 
     exit_if_not_toplevel()
@@ -424,6 +419,21 @@ def check_handler():
 
         os.chdir(current_dir)
 
+def for_all_handler(args):
+    """run a command against all externals"""
+
+    command = " ".join(args)
+
+    for dir in get_externals_paths():
+
+        current_dir = os.getcwd()
+        os.chdir(dir)
+
+        print ">>> %s: %s" % (dir, command)
+
+        os.system(command)
+
+        os.chdir(current_dir)
 
 # TODO: use a structure that preserves order (for usage)
 handler_map = {}
@@ -431,6 +441,7 @@ handler_map['clone']          = clone_handler
 handler_map['update']         = update_handler
 handler_map['check-unpushed'] = check_unpushed_handler
 handler_map['check']          = check_handler
+handler_map['for-all']        = for_all_handler
 
 def usage():
     """Descriptive text of all options"""
@@ -458,4 +469,9 @@ if __name__ == '__main__':
         usage()
         sys.exit(1)
 
-    handler()
+    args = []
+    if len(sys.argv) > 2:
+        args += sys.argv[2:]
+
+    handler(args)
+
