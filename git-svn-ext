@@ -199,19 +199,21 @@ def do_clone(local_directory, remote_url, revision):
     if tags.count(branchpath): tags = branchpath
     if brch.count(branchpath): brch = branchpath
 
+    # Format the revision argument
+    rev_arg = ""
+    if revision != "":
+        rev_arg = "--revision BASE:" + revision
+
     # If the directory is alread there, update it
     if os.path.isdir(local_directory):
         current_dir2 = os.getcwd()
         os.chdir(local_directory)
-        run_command("git svn fetch --all")
+        run_command("git svn fetch " + rev_arg)
+        # -l skips fetching
+        run_command("git svn rebase --local")
         os.chdir(current_dir2)
     # Otherwise, clone it
     else:
-
-        # Format the revision argument
-        rev_arg = ""
-        if revision != "":
-            rev_arg = "-r " + revision
 
         if has_branches_tags:
             run_command("git svn clone %s %s -T trunk -b %s -t %s %s" % (rev_arg, module, brch, tags, local_directory))
@@ -272,7 +274,8 @@ class SvnExternal:
             # format: current_dir/dir[@rev] [-r 123] dir
             # the ?P<name> syntax is to get the stuff by name
             re_current_dir = current_dir.replace("/", "\\/") # regular expression safe string
-            external_matches = re.search(r"/%s(?P<remote_url>.+)(@(?P<rev1>\d+))? (-r(?P<rev2>\d+) )?(?P<local_dir>.+)" % re_current_dir , line)
+            # NOTE: the remote_url section is non-greedy so that @rev is matched correctly
+            external_matches = re.search(r"/%s(?P<remote_url>.+?)(@(?P<rev1>\d+))? (-r\s*(?P<rev2>\d+) )?(?P<local_dir>.+)" % re_current_dir , line)
 
             if current_dir_matches:
                 # save off the current dir
@@ -303,7 +306,7 @@ class SvnExternal:
 
                 local_dir = external_info["local_dir"]
 
-                # Determine the revision
+                # Determine the revision (hopefully only 1 is specified)
                 revision = ""
                 if external_info["rev1"] != None:
                     revision = external_info["rev1"]
@@ -322,6 +325,22 @@ class SvnExternal:
                     ret.append(SvnExternal(current_dir, local_dir, remote_url, revision))
 
         return ret
+
+    def local_storage(self):
+        """Get the directory that this external will be cloned to"""
+
+        # TODO/NOTE: it's possible to have 2 externals of the same name
+        # in different directories
+        return externals_dir + os.sep + self.local_dir
+
+    def revision_arguments(self):
+        """Format argumntes if there's a revision"""
+
+        # Format the revision argument
+        rev_arg = ""
+        if self.revision != "":
+            rev_arg = "--revision BASE:" + self.revision
+        return rev_arg
 
 # maybe have this go to the repo root automatically?
 def get_externals_paths():
@@ -364,14 +383,31 @@ def clone_handler(args):
         do_link(external.external_dir, external.local_dir)
         do_excludes(external.external_dir + external.local_dir)
 
-
+# TODO: maybe clone should just do this instead?
+# but clone can blow stuff away... (reset --hard)
 def update_handler(args):
-    """Updates all svn externals (git svn rebase)"""
+    """Updates all svn externals (git svn fetch[ --revision]/rebase --local)"""
 
     exit_if_not_toplevel()
 
-    # Must pass in as keywords to fit the interface
-    for_all_handler("git svn rebase".split())
+    # Do show externals to get possible revisions
+    # looks at svn server
+    externals = SvnExternal.GetExternals()
+
+    # get the externals dirs
+    # looks at disk
+    ext_paths = get_externals_paths()
+
+    for ext in externals:
+        ext_path = ext.local_storage()
+        if ext_paths.count(ext_path):
+            print ">>> " + ext_path
+            current_dir = os.getcwd()
+            os.chdir(ext_path)
+            run_command("git svn fetch %s" % ext.revision_arguments())
+            run_command("git svn rebase --local")
+
+            os.chdir(current_dir)
 
 
 # TODO: would it be nice to have a recursive option?
