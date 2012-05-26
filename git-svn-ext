@@ -16,6 +16,7 @@ logger.level = logging.INFO
 # This is so we can change directories but still have a reference
 # to ourselves
 git_svn_ext_fullpath = os.path.abspath(sys.argv[0])
+externals_dir = ".git_externals"
 excludes_file = ".git_external_excludes"
 
 ##################### Helper Methods #####################
@@ -130,7 +131,7 @@ def do_link(external_dir, link_dir):
     # NOTE: the original used -f, so remove and recreate
     if os.path.exists(link_name): os.unlink(link_name)
 
-    os.symlink(rel + ".git_externals/" + link_name, link_name)
+    os.symlink(rel + externals_dir + os.sep + link_name, link_name)
 
     os.chdir(current_dir)
 
@@ -153,7 +154,7 @@ def do_excludes(external_link):
     """add symlink to the git excludes path"""
 
     git_excludes_path=".git/info/exclude"
-    append_line_if_not_included(git_excludes_path, ".git_externals")
+    append_line_if_not_included(git_excludes_path, externals_dir)
     append_line_if_not_included(git_excludes_path, external_link)
 
 def run_command(command):
@@ -165,7 +166,7 @@ def do_clone(local_directory, remote_url, revision):
     """do the actual cloning"""
 
     # make sure the dir exists
-    if not os.path.exists(".git_externals"):
+    if not os.path.exists(externals_dir):
         return False
 
     (module, branch) = re.search("(.*)/(trunk|branch.*|tag.*)", remote_url).groups()
@@ -175,7 +176,7 @@ def do_clone(local_directory, remote_url, revision):
 
     current_dir1 = os.getcwd()
 
-    os.chdir(".git_externals")
+    os.chdir(externals_dir)
 
     # Default
     has_branches_tags = False
@@ -328,10 +329,9 @@ def get_externals_paths():
 
     results = []
 
-    git_ext_dir = ".git_externals"
-    if os.path.isdir(git_ext_dir):
-        for external in os.listdir(git_ext_dir):
-            gitdir = os.path.join(git_ext_dir, external, ".git")
+    if os.path.isdir(externals_dir):
+        for external in os.listdir(externals_dir):
+            gitdir = os.path.join(externals_dir, external, ".git")
             if os.path.isdir(gitdir):
                 results.append(os.path.dirname(gitdir))
 
@@ -354,8 +354,8 @@ def clone_handler():
         dir = os.path.dirname(external.local_dir)
 
         # just create two dirs instead of pulling in mkpath
-        create_dir_if_not_exist(".git_externals")
-        create_dir_if_not_exist(os.path.join(".git_externals", dir))
+        create_dir_if_not_exist(externals_dir)
+        create_dir_if_not_exist(os.path.join(externals_dir, dir))
 
         if not do_clone(external.local_dir, external.remote_url, external.revision):
             sys.exit(1)
