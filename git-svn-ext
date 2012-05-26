@@ -322,6 +322,20 @@ class SvnExternal:
 
         return ret
 
+# maybe have this go to the repo root automatically?
+def get_externals_paths():
+    """Get a list of paths to externals for the current dir"""
+
+    results = []
+
+    git_ext_dir = ".git_externals"
+    if os.path.isdir(git_ext_dir):
+        for external in os.listdir(git_ext_dir):
+            gitdir = os.path.join(git_ext_dir, external, ".git")
+            if os.path.isdir(gitdir):
+                results.append(os.path.dirname(gitdir))
+
+    return results
 
 ########### sub-command handlers #############
 
@@ -355,19 +369,13 @@ def update_handler():
 
     exit_if_not_toplevel()
 
-    git_ext_dir = ".git_externals"
-    if os.path.isdir(git_ext_dir):
-        for external in os.listdir(git_ext_dir):
-            gitdir = os.path.join(git_ext_dir, external, ".git")
-            if os.path.isdir(gitdir):
-                dir = os.path.dirname(gitdir)
-                if os.path.isdir(dir):
-                    current_dir = os.getcwd()
-                    os.chdir(dir)
-                    print dir
-                    os.system("git svn fetch")
-                    os.system("git svn rebase")
-                    os.chdir(current_dir)
+    for dir in get_externals_paths():
+        current_dir = os.getcwd()
+        os.chdir(dir)
+        print dir
+        os.system("git svn fetch")
+        os.system("git svn rebase")
+        os.chdir(current_dir)
 
 
 # TODO: would it be nice to have a recursive option?
@@ -398,28 +406,23 @@ def check_handler():
 
     exit_if_not_toplevel()
 
-    git_ext_dir = ".git_externals"
-    if os.path.isdir(git_ext_dir):
-        for external in os.listdir(git_ext_dir):
-            gitdir = os.path.join(git_ext_dir, external, ".git")
-            if os.path.isdir(gitdir):
-                dir = os.path.dirname(gitdir)
-                if os.path.isdir(dir):
-                    current_dir = os.getcwd()
-                    os.chdir(dir)
+    for dir in get_externals_paths():
 
-                    status = getoutput("git status")
-                    unpushed = getoutput(git_svn_ext_fullpath + " check-unpushed")
-                    if not re.search("clean", status) or not re.search("No unpushed", unpushed):
-                        print ">>>>>>>>>>>>>>>> %s <<<<<<<<<<<<<<<<" % dir
-                        # Run these again to get color output
-                        os.system("git status")
-                        os.system(git_svn_ext_fullpath + " check-unpushed")
-                        print "----------------------------------------"
-                    else:
-                        print dir + " is clean"
+        current_dir = os.getcwd()
+        os.chdir(dir)
 
-                    os.chdir(current_dir)
+        status = getoutput("git status")
+        unpushed = getoutput(git_svn_ext_fullpath + " check-unpushed")
+        if not re.search("clean", status) or not re.search("No unpushed", unpushed):
+            print ">>>>>>>>>>>>>>>> %s <<<<<<<<<<<<<<<<" % dir
+            # Run these again to get color output
+            os.system("git status")
+            os.system(git_svn_ext_fullpath + " check-unpushed")
+            print "----------------------------------------"
+        else:
+            print dir + " is clean"
+
+        os.chdir(current_dir)
 
 
 # TODO: use a structure that preserves order (for usage)
