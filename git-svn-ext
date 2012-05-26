@@ -424,16 +424,22 @@ def for_all_handler(args):
 
     command = " ".join(args)
 
-    for dir in get_externals_paths():
+    if command:
+        for dir in get_externals_paths():
 
-        current_dir = os.getcwd()
-        os.chdir(dir)
+            current_dir = os.getcwd()
+            os.chdir(dir)
 
-        print ">>> %s: %s" % (dir, command)
+            print ">>> %s: %s" % (dir, command)
 
-        os.system(command)
+            os.system(command)
 
-        os.chdir(current_dir)
+            os.chdir(current_dir)
+
+    else:
+        usage()
+        sys.exit(1)
+
 
 # TODO: use a structure that preserves order (for usage)
 handler_map = {}
