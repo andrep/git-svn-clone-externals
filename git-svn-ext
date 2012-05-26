@@ -97,7 +97,7 @@ def exit_if_not_toplevel():
     toplevel_directory = getoutput("git rev-parse --show-cdup")
 
     if toplevel_directory != "":
-        print "please run from the toplevel directory"
+        print "Error: not in toplevel directory"
         sys.exit(1)
 
 def is_excluded(external):
@@ -341,7 +341,8 @@ def get_externals_paths():
 
 
 def clone_handler(args):
-    """git-svn clone of all svn externals into .git_externals (can blow aways changes when rerunning!)"""
+    """clone all svn externals into .git_externals
+    (warning: removes local changes and commits on subsequent runs)"""
 
     exit_if_not_toplevel()
 
@@ -365,7 +366,7 @@ def clone_handler(args):
 
 
 def update_handler(args):
-    """Update all svn externals"""
+    """Updates all svn externals (git svn rebase)"""
 
     exit_if_not_toplevel()
 
@@ -376,7 +377,7 @@ def update_handler(args):
 # TODO: would it be nice to have a recursive option?
 # otherwise, you have to run it from the root dir
 def check_unpushed_handler(args):
-    """Check if a local external has any unpushed commits"""
+    """Check if local git-svn checkout has unpushed commits"""
 
     status = getoutput('git status')
     if status.startswith('fatal'):
@@ -397,7 +398,7 @@ def check_unpushed_handler(args):
         print 'No unpushed commits found.'
 
 def check_handler(args):
-    """Check for local externals that have unpushed commits"""
+    """run 'git status' and 'check-unpushed' for all externals"""
 
     exit_if_not_toplevel()
 
@@ -420,7 +421,8 @@ def check_handler(args):
         os.chdir(current_dir)
 
 def for_all_handler(args):
-    """run a command against all externals"""
+    """run a command against all externals
+    (ie: git svn-ext for-all git grep 'whatever')"""
 
     command = " ".join(args)
 
@@ -441,35 +443,72 @@ def for_all_handler(args):
         sys.exit(1)
 
 
-# TODO: use a structure that preserves order (for usage)
-handler_map = {}
-handler_map['clone']          = clone_handler
-handler_map['update']         = update_handler
-handler_map['check-unpushed'] = check_unpushed_handler
-handler_map['check']          = check_handler
-handler_map['for-all']        = for_all_handler
+class Handlers:
+    """Register and dispatch handlers, as well as provide documentation"""
+    def __init__(self):
+        # keep ordering
+        self.names = []
+        self.handlers = {}
+
+    def add(self, name, handler):
+        self.names.append(name)
+        self.handlers[name] = handler
+
+    def get(self, name):
+        if self.handlers.has_key(name):
+            return self.handlers[name]
+        else:
+            return None
+
+    def _aligned_name(self, name):
+        """string of spaces to pad command to align text"""
+
+        # find out how long the lines are so they can line up
+        max_len = 0
+        for n in self.names:
+            if len(n) > max_len:
+                max_len = len(n)
+
+        return name + " " * (1 + max_len - len(name))
+
+    def helptext(self):
+        """get description of all the handlers"""
+
+        ret = ""
+
+        for n in self.names:
+            ret += "  %s: %s\n" % (self._aligned_name(n), self.handlers[n].__doc__)
+
+        return ret
+
+
+# NOTE: this order is preserved for usage help text
+handlers = Handlers()
+handlers.add('clone',          clone_handler)
+handlers.add('update',         update_handler)
+handlers.add('check-unpushed', check_unpushed_handler)
+handlers.add('check',          check_handler)
+handlers.add('for-all',        for_all_handler)
 
 def usage():
     """Descriptive text of all options"""
     print ""
-    print "Usage: " + sys.argv[0] + " [" + "|".join(handler_map.keys()) + "]"
+    print "Usage: " + sys.argv[0] + " <sub command> [sub command args]"
     print ""
-    # TODO: would be nice if the docs were aligned
-    for k,v in handler_map.items():
-        print "  %s: %s" % (k, v.__doc__)
+    print " sub commmands:"
+    print handlers.helptext()
     print ""
 
 if __name__ == '__main__':
 
-    handler = ""
+    handler = None
 
     try:
         sub_command = sys.argv[1]
+        handler = handlers.get(sub_command)
 
-        if handler_map.has_key(sub_command):
-            handler = handler_map[sub_command]
-        else:
-            raise "Invalid sub command"
+        if handler == None:
+            raise "invalid subcommand"
 
     except:
         usage()
