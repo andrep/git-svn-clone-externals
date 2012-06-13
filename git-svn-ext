@@ -16,7 +16,10 @@ logger.level = logging.INFO
 # This is so we can change directories but still have a reference
 # to ourselves
 git_svn_ext_fullpath = os.path.abspath(sys.argv[0])
+excludes_file = ".git_external_excludes"
 
+
+##################### Helper Methods #####################
 
 def list_references():
     """List the references in the local repo.
@@ -85,15 +88,269 @@ def find_uncommitted(svn_branch):
     else:
         print 'No unpushed commits found.'
 
-
-def update_handler():
-    """Update all svn externals"""
-
+def exit_if_not_toplevel():
+    """exit if not run from the top level git directory"""
     toplevel_directory = getoutput("git rev-parse --show-cdup")
 
     if toplevel_directory != "":
         print "please run from the toplevel directory"
         sys.exit(1)
+
+def is_excluded(external):
+    """return True if excluding this external"""
+
+    if os.path.exists(excludes_file):
+        for line in open(excludes_file).readlines():
+            if re.search("^/%s$" % external, line):
+                return True
+
+    return False
+
+
+def create_dir_if_not_exist(dir):
+    """helper to create a directory if it doesn't exist"""
+    if not os.path.exists(dir): os.mkdir(dir)
+
+
+def do_link(external_dir, link_dir):
+    """create the link to the external"""
+
+    current_dir = os.getcwd()
+
+    os.chdir(external_dir)
+
+    # get relative back to git-svn root
+    rel = getoutput("git rev-parse --show-cdup")
+
+    link_name = os.path.basename(link_dir)
+
+    # NOTE: the original used -f, so remove and recreate
+    if os.path.exists(link_name): os.unlink(link_name)
+
+    os.symlink(rel + ".git_externals/" + link_name, link_name)
+
+    os.chdir(current_dir)
+
+def append_line_if_not_included(filename, line):
+
+    found = False
+    for l in open(filename).readlines():
+        if line == l.rstrip():
+            found = True
+            break
+
+    if not found:
+        fd = open(filename, "a")
+        # TODO: do we need to have a newline to the end of the file
+        # before appending?
+        fd.write(line + "\n")
+        fd.close()
+
+def do_excludes(external_link):
+    """add symlink to the git excludes path"""
+
+    git_excludes_path=".git/info/exclude"
+    append_line_if_not_included(git_excludes_path, ".git_externals")
+    append_line_if_not_included(git_excludes_path, external_link)
+
+def run_command(command):
+    """print out and run a command"""
+    print command
+    return os.system(command)
+
+def do_clone(local_directory, remote_url, revision):
+    """do the actual cloning"""
+
+    # make sure the dir exists
+    if not os.path.exists(".git_externals"):
+        return False
+
+    (module, branch) = re.search("(.*)/(trunk|branch.*|tag.*)", remote_url).groups()
+
+    if branch == remote_url:
+        branch = ""
+
+    current_dir1 = os.getcwd()
+
+    os.chdir(".git_externals")
+
+    # Default
+    has_branches_tags = False
+
+    # if we found references to branches and tags, clone them
+    if module != remote_url:
+        has_branches_tags = True
+
+    # if we are cloning a subdirectory of a branch path, use the remote_url, and don't get tags/branch/trunk
+    # ie: if it contains some of these, but does not end with it
+    if re.search("trunk|tags|branch.*", remote_url):
+        if not re.search("trunk$|tags$|branch.*$", remote_url):
+            has_branches_tags = False
+            module = remote_url
+
+    # Try to figure out what the tags and branches portions are
+    tags = "tags"
+    brch = "branches"
+    branchpath = branch.split("/")[0]
+    if tags.count(branchpath): tags = branchpath
+    if brch.count(branchpath): brch = branchpath
+
+    # If the directory is alread there, update it
+    if os.path.isdir(local_directory):
+        current_dir2 = os.getcwd()
+        os.chdir(local_directory)
+        run_command("git svn fetch --all")
+        os.chdir(current_dir2)
+    # Otherwise, clone it
+    else:
+
+        # Format the revision argument
+        rev_arg = ""
+        if revision != "":
+            rev_arg = "-r " + revision
+
+        if has_branches_tags:
+            run_command("git svn clone %s %s -T trunk -b %s -t %s %s" % (rev_arg, module, brch, tags, local_directory))
+        else:
+            # URL does not contains any trunk, branches or tags part, so we dont need
+            # additional options for git-svn
+            run_command("git svn clone %s %s %s" % (rev_arg, module, local_directory))
+
+    # If we have branches and tags, checkout that directory
+    # careful, can blow aways changes!
+    # remove trailing slash
+    branch = re.sub("/$", "", branch)
+
+    if branch != "" and has_branches_tags:
+        current_dir3 = os.getcwd()
+        os.chdir(local_directory)
+        run_command("git reset --hard " + branch)
+        os.chdir(current_dir3)
+
+    os.chdir(current_dir1)
+
+    return True
+
+def get_svn_root_url():
+    """Parse out the svn root to use with relative urls"""
+
+    root = ""
+    for line in getoutput("git svn info").split("\n"):
+        matches = re.search("Repository Root: (.*)", line)
+
+        if matches:
+            root = matches.group(1)
+
+
+    if root == "":
+        print "Unable to determine repository root"
+        sys.exit(1)
+
+    return root
+
+class SvnExternal:
+    """Class to hold and manipulate data about an svn external"""
+
+    def __init__(self, external_dir, local_dir, remote_url, revision):
+        self.external_dir = external_dir
+        self.local_dir    = local_dir
+        self.remote_url   = remote_url
+        self.revision     = revision
+
+    @staticmethod
+    def GetExternals():
+        ret = []
+
+        current_dir = ""
+        for line in getoutput("git svn show-externals").split("\n"):
+
+            current_dir_matches = re.search(r"# /(.*)", line)
+            # format: current_dir/dir[@rev] [-r 123] dir
+            # the ?P<name> syntax is to get the stuff by name
+            re_current_dir = current_dir.replace("/", "\\/") # regular expression safe string
+            external_matches = re.search(r"/%s(?P<remote_url>.+)(@(?P<rev1>\d+))? (-r(?P<rev2>\d+) )?(?P<local_dir>.+)" % re_current_dir , line)
+
+            if current_dir_matches:
+                # save off the current dir
+                current_dir = current_dir_matches.group(1)
+                #print "Setting current_dir to: " + current_dir
+                continue
+
+            elif external_matches:
+
+                external_info = external_matches.groupdict()
+
+                # Check for relative url
+                remote_url = external_info["remote_url"]
+                # TODO: there are probably other external url types that we don't handle
+                if remote_url.count("^"):
+                    svn_root_url = get_svn_root_url()
+                    svn_base = os.path.dirname(svn_root_url)
+                    svn_path = os.path.basename(svn_root_url)
+                    remote_url = remote_url.replace("^", svn_path)
+
+                    # Normalize the path
+                    remote_url = os.path.normpath(remote_url)
+
+                    # Stick them back together
+                    # had to split apart because normpath turns "//" into "/"
+                    # maybe a better url parsing method would be better?
+                    remote_url = svn_base + os.sep + remote_url
+
+                local_dir = external_info["local_dir"]
+
+                # Determine the revision
+                revision = ""
+                if external_info["rev1"] != None:
+                    revision = external_info["rev1"]
+                elif external_info["rev2"] != None:
+                    revision = external_info["rev2"]
+
+                # Allow exclusion of externals
+                if not is_excluded(local_dir):
+
+                    # Honor env var to override url
+                    if os.environ.has_key("USE_SSH"):
+                        remote_url = re.sub("(http|https)", "svn+ssh", remote_url)
+
+                # Add the info
+                if remote_url != "":
+                    ret.append(SvnExternal(current_dir, local_dir, remote_url, revision))
+
+        return ret
+
+
+########### sub-command handlers #############
+
+
+def clone_handler():
+    """git-svn clone of all svn externals into .git_externals (can blow aways changes when rerunning!)"""
+
+    exit_if_not_toplevel()
+
+    externals = SvnExternal.GetExternals()
+
+    for external in externals:
+
+        print "%s -> %s" % (external.local_dir, external.remote_url)
+
+        dir = os.path.dirname(external.local_dir)
+
+        # just create two dirs instead of pulling in mkpath
+        create_dir_if_not_exist(".git_externals")
+        create_dir_if_not_exist(os.path.join(".git_externals", dir))
+
+        if not do_clone(external.local_dir, external.remote_url, external.revision):
+            sys.exit(1)
+
+        do_link(external.external_dir, external.local_dir)
+        do_excludes(external.external_dir + external.local_dir)
+
+
+def update_handler():
+    """Update all svn externals"""
+
+    exit_if_not_toplevel()
 
     git_ext_dir = ".git_externals"
     if os.path.isdir(git_ext_dir):
@@ -142,8 +399,10 @@ def check_handler():
             os.chdir("..")
 
 
+
 # TODO: use a structure that preserves order (for usage)
 handler_map = {}
+handler_map['clone']          = clone_handler
 handler_map['update']         = update_handler
 handler_map['check-unpushed'] = check_unpushed_handler
 handler_map['check']          = check_handler
