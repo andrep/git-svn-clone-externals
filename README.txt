@@ -42,3 +42,7 @@ Authors
 - Alexander Artemenko <svetlyak.40wt@gmail.com>
 - Wade Berrier <wberrier@gmail.com>
 
+TODO
+====
+- make clone not blow stuff away
+- handle the case when externals are removed or altered
