@@ -17,8 +17,8 @@ function call()
 function do_clone()
 {
     test -d .git_externals || return 1
-    module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-    branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+    module=$(echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,')
+    branch=$(echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,')
     if [[ $branch = $remote_url ]]; then
         branch=""
     fi
@@ -86,7 +86,7 @@ function is_excluded()
 {
     local result=0
     if [ -f .git_externals_exclude ] ; then
-        matches=`grep -v "^#" .git_externals_exclude|grep "^/$1$"|wc -l`
+        matches=$(grep -v "^#" .git_externals_exclude|grep "^/$1$"|wc -l)
         if [ $matches -gt 0 ] ; then
             local result=1
         fi
@@ -101,12 +101,23 @@ git svn show-externals | grep -vE '#|^$' | \
     while read svn_externals
 do
 
+    echo $svn_externals
     number_fields="$(echo ${svn_externals}|awk '{print NF}')"
     case $number_fields in
         2)
-            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
+            local_directory="$(echo ${svn_externals} | awk '{print $1}')"
             revision=""
             remote_url="$(echo ${svn_externals} | awk '{print $2}')"
+
+            if echo $remote_url | grep -v '/'; then
+                echo "Flipped dir and url....swapping"
+                tmp="$local_directory"
+                local_directory="$remote_url"
+                remote_url="$tmp"
+                local_directory="$(echo $remote_url | sed 's,\(.*\)^.*,\1,')$local_directory"
+            fi
+            local_directory="$(echo $local_directory | sed 's,^/,,')"
+
             ;;
         3)
             local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
@@ -115,6 +126,18 @@ do
             ;;
         *) continue ;;
     esac
+
+    if echo "$remote_url" | grep '\^'; then
+        echo "Relative remote URL, munging"
+        orig_remote_url="$remote_url"
+        remote_url="$(git svn info|grep '^Repository Root:'|awk '{print $3}')$(echo "$remote_url" | sed 's,^.*\^,,')"
+        echo "$orig_remote_url -> $remote_url"
+    fi
+
+    while echo "$remote_url" | grep '/../'; do
+        echo "Remote URL has /../, collapsing"
+        remote_url="$(echo $remote_url | sed 's,[^/]*/../,,')"
+    done
 
     check_excluded=$(is_excluded $local_directory)
     if [ $check_excluded -eq 0 ] ; then
@@ -130,7 +153,7 @@ do
 
         echo "$local_directory -> $remote_url"
 
-        dir=`dirname $local_directory`
+        dir=$(dirname $local_directory)
         [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
 
         do_clone "$revision" "$remote_url" "$local_directory" || exit
