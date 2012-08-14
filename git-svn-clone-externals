@@ -17,8 +17,8 @@ function call()
 function do_clone()
 {
     test -d .git_externals || return 1
-    module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-    branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
+    module=$(echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,')
+    branch=$(echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,')
     if [[ $branch = $remote_url ]]; then
         branch=""
     fi
@@ -86,7 +86,7 @@ function is_excluded()
 {
     local result=0
     if [ -f .git_externals_exclude ] ; then
-        matches=`grep -v "^#" .git_externals_exclude|grep "^/$1$"|wc -l`
+        matches=$(grep -v "^#" .git_externals_exclude|grep "^/$1$"|wc -l)
         if [ $matches -gt 0 ] ; then
             local result=1
         fi
@@ -130,7 +130,7 @@ do
 
         echo "$local_directory -> $remote_url"
 
-        dir=`dirname $local_directory`
+        dir=$(dirname $local_directory)
         [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
 
         do_clone "$revision" "$remote_url" "$local_directory" || exit
