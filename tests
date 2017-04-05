@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+
+# There are a lot of formats... test them out with some examples
+
+git_svn_info = {
+        "Path":                ".",
+        "URL":                 "svn+ssh://svn.example.com/skin-maker/mydir",
+        "Repository Root":     "svn+ssh://svn.example.com/skin-maker",
+        "Repository UUID":     "a4bac7da-eecc-44ef-9201-0e2b325a63d8",
+        "Revision":            "1000",
+        "Node Kind":           "directory",
+        "Schedule":            "normal",
+        "Last Changed Author": "wberrier",
+        "Last Changed Rev":    "1000",
+        "Last Changed Date":   "2012-05-25 15:49:11 -0600 (Fri, 25 May 2012)"
+        }
+
+
+import GitSvnExt
+
+import unittest
+
+class TestSvnExternalParsing(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def testPRE1_5_a(self):
+        ext = GitSvnExt.SvnExternal("third-party/skins/toolkit -r21  http://svn.example.com/skin-maker", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "http://svn.example.com/skin-maker")
+
+    def testPRE1_5_b(self):
+        """Surrounding space, no revision, and file scheme"""
+        ext = GitSvnExt.SvnExternal(" third-party/skins/toolkit  file:///svn.example.com/skin-maker ", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "")
+        self.assertEqual(ext.url, "file:///svn.example.com/skin-maker")
+
+    def test1_5_a(self):
+        ext = GitSvnExt.SvnExternal("http://svn.example.com/skin-maker third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "")
+        self.assertEqual(ext.url, "http://svn.example.com/skin-maker")
+
+    def test1_5_b(self):
+        ext = GitSvnExt.SvnExternal("http://svn.example.com/skin-maker@21 third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "http://svn.example.com/skin-maker")
+
+    def test1_5_c(self):
+        ext = GitSvnExt.SvnExternal("-r21 http://svn.example.com/skin-maker third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "http://svn.example.com/skin-maker")
+
+    def test1_6_a(self):
+        ext = GitSvnExt.SvnExternal("-r21 /skin-maker third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "svn+ssh://svn.example.com/skin-maker")
+
+    def test1_6_b(self):
+        ext = GitSvnExt.SvnExternal("//svn.example.com/skin-maker@21 third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "svn+ssh://svn.example.com/skin-maker")
+
+    def test1_6_c(self):
+        ext = GitSvnExt.SvnExternal("^/subdir@21 third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "svn+ssh://svn.example.com/skin-maker/subdir")
+
+    def test1_6_d(self):
+        ext = GitSvnExt.SvnExternal("../subdir@21 third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "svn+ssh://svn.example.com/skin-maker/subdir")
+
+    def test1_6_e(self):
+        ext = GitSvnExt.SvnExternal("^/../super-skin-maker@21 third-party/skins/toolkit", git_svn_info)
+
+        self.assertEqual(ext.dir, "third-party/skins/toolkit")
+        self.assertEqual(ext.rev, "21")
+        self.assertEqual(ext.url, "svn+ssh://svn.example.com/super-skin-maker")
+
+    def tearDown(self):
+        pass
+
+
+if __name__ == '__main__':
+    unittest.main()
