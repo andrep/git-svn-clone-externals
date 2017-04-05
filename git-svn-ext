@@ -151,9 +151,10 @@ def get_git_svn_externals():
         if external_dir_match:
             # the external dir is a relative dir, but starts with a slash
             # remove the leading /
-            tmp = re.sub("^/", "", external_dir_match.group(1))
-            if tmp != "":
-                external_dir = tmp
+            if external_dir_match.group(1) and external_dir_match.group(1)[0] == "/":
+                tmp = re.sub("^/", "", external_dir_match.group(1))
+                if tmp != "":
+                    external_dir = tmp
         elif line != "":
             # start array
             if not results.has_key(external_dir): results[external_dir] = []
@@ -247,7 +248,7 @@ class SvnExternal:
         dash_rev_part   = r"(-r\s*(?P<rev>\d+))?\s*"
 
         re_pre_1_5  = re.compile(r"(?P<dir>.+?)\s+%s(?P<url>%s.+)" % ( dash_rev_part, scheme_part))
-        re_1_5_plus = re.compile(r"%s(?P<url>.+?)(@(?P<rev2>\d+))?\s+(?P<dir>.+)" % (dash_rev_part))
+        re_1_5_plus = re.compile(r"/?%s'?(?P<url>.+?)(@(?P<rev2>\d+))?'?\s+(?P<dir>.+)" % (dash_rev_part))
 
         match_dict = {}
         postprocess_1_5 = False
