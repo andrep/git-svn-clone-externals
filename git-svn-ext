@@ -425,6 +425,9 @@ class GitSvnExternal:
 
         # construct relative link
         current_dir = os.getcwd()
+        # Create parent directories (eg: foo/bar/baz) if required 
+        if not os.path.exists(os.path.dirname(self.symlink_())):
+            os.makedirs(os.path.dirname(self.symlink_()))
         os.chdir(os.path.dirname(self.symlink_()))
         rel = get_relative_base()
         os.chdir(current_dir)
