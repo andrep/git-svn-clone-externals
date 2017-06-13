@@ -8,8 +8,6 @@ function call()
     return "$?"
 }
 
-source "./git-svn-externals-include"
-
 function do_clone()
 {
     test -d .git_externals || return 1
