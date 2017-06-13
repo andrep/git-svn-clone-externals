@@ -1,0 +1,19 @@
+#!/bin/bash
+
+source "./git-svn-externals-include"
+
+function git-svn-externals-link()
+{
+	toplevel_directory="$(git rev-parse --show-cdup)"
+	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
+
+	echo "Creating symbolic links for externals"
+
+	find .git_externals -type d -name .git | while read gitdir; do
+		dir=$(dirname "$gitdir" | sed 's|.git_externals/||' )
+		
+		do_link "$dir"
+	done
+
+	echo "Finished creating symbolic links"
+}
