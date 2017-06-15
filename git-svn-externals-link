@@ -3,7 +3,7 @@
 function git_svn_externals_link()
 {
 	toplevel_directory="$(git rev-parse --show-cdup)"
-	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
+	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; return; }
 
 	echo "Creating symbolic links for externals"
 	externals=.git_externals/$(get_branch)
