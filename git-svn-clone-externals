@@ -73,11 +73,11 @@ function git_svn_clone_externals()
 	set -e
 
 	toplevel_directory="$(git rev-parse --show-cdup)"
-	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
+	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; return; }
 
 	if isWindows; then
 	    if ! net session &> /dev/null; then
-	        echo 'Please run as administrator! It is required to create symbolic links.'; exit 1;
+	        echo 'Please run as administrator! It is required to create symbolic links.'; return;
 	    fi
 	fi
 
@@ -165,7 +165,7 @@ function git_svn_clone_externals()
 			branch=$(get_branch)
 			[ -d ".git_externals/${branch}/$dir" ] || mkdir -p ".git_externals/${branch}/$dir"
 			echo "Cloning.............................."
-			do_clone "$revision" "$remote_url" "$destination" || exit
+			do_clone "$revision" "$remote_url" "$destination" || return
 			echo "Linking.............................."
 			do_link "$destination"
 			echo "Excludes............................."
