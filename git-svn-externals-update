@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function git-svn-externals-update()
+function git_svn_externals_update()
 {
 	toplevel_directory="$(git rev-parse --show-cdup)"
 	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; return; }
