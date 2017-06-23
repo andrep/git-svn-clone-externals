@@ -1,18 +1,21 @@
 #!/bin/bash
 
+function git_svn_fetch_rebase()
+{
+	dir=$(dirname "$1")
+    if [ -d "$dir" ]; then
+	echo "$dir"
+	git -C  "$dir" svn fetch -r HEAD
+	git -C  "$dir" svn rebase
+    fi
+}
+
+
 function git_svn_externals_update()
 {
 	toplevel_directory="$(git rev-parse --show-cdup)"
 	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; return; }
 
-	find .git_externals -type d -name .git | while read gitdir; do
-		dir=$(dirname "$gitdir")
-	    if [ -d $dir ]; then
-		pushd $dir
-		echo $dir
-		git svn fetch -r HEAD
-		git svn rebase
-		popd
-	    fi
-	done
+	export -f git_svn_fetch_rebase
+	find .git_externals -type d -name .git | xargs -P4 -I{} bash -c 'git_svn_fetch_rebase "$@"' _ {}
 }
