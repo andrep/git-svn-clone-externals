@@ -1,11 +1,5 @@
 #!/bin/bash
 
-set -e
-
-toplevel_directory="$(git rev-parse --show-cdup)"
-[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; exit 1; }
-
-
 function call()
 {
     cmd="$@"
@@ -17,59 +11,38 @@ function call()
 function do_clone()
 {
     test -d .git_externals || return 1
-    module=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\1,'`
-    branch=`echo $remote_url|sed 's,\(.*\)\(/trunk\|/branch.*\|/tag.*\),\2,'|sed 's,^/,,'`
-    if [[ $branch = $remote_url ]]; then
-        branch=""
-    fi
-     (
-        cd .git_externals
-        if [ -d "$local_directory" ]; then
-            (
-                cd "$local_directory"
-                call git svn fetch --all
-            )
-        else
-            tags="tags"
-            brch="branches"
-            branchpath=$(echo $branch|cut -f1 -d/)
-            echo $tags|grep $branchpath >/dev/null 2>&1 && tags=$branchpath
-            echo $brch|grep $branchpath >/dev/null 2>&1 && brch=$branchpath
+    
+    cd ".git_externals/$(get_branch)"
 
-            if [ "$module" = "$remote_url" ]; then
-                # URL does not contains any trunk, branches or tags part, so we dont need
-                # additional options for git-svn
-                call git svn clone "$revision" "$module" "$local_directory"
-            else
-                call git svn clone "$revision" "$module" -T trunk -b $brch -t $tags "$local_directory"
-            fi
+    #Scape spaces in the path with backslash
+    destination_scaped="$(echo ${destination} | sed -E 's/ /\\ /g')" 
 
-        fi
+    #Replace spaces in the url by %20
+    remote_url_no_spaces="$(echo ${remote_url} | sed -r 's_ _%20_g')"
+
+    echo "External destination $destination" 
+    if [ -d "$destination" ]; then
         (
-            branch="$(echo ${branch}|sed 's,/$,,')"
-            if [ -n "$branch" ]; then
-                cd "$local_directory"
-                call git reset --hard $branch
-            fi
+            echo "fetching all ... " $destination 
+            cd "$destination"
+            call git svn fetch -r HEAD
         )
-    )
-}
-
-function do_link()
-{
-    dir="$1"
-    base="$(dirname $dir)"
-    (
-        mkdir -p "$base"
-        cd $base
-        rel=$(git rev-parse --show-cdup)
-        ln -sf ${rel}.git_externals/"$dir"
-    )
+    else
+        
+        call git svn clone -r" ${revision}" "$remote_url_no_spaces" "$destination_scaped"
+    fi
+    
 }
 
 function do_excludes()
 {
-    dir="$1"
+    #Return to the top level directory
+    top=$(git rev-parse --show-cdup)
+    cd "$top"
+
+    #Scape spaces in the path with backslash and remove the firt dot and slash
+    dir=$(echo "${1}" | sed -E 's/ /\\ /g' | sed s_^\.\/__) 
+    echo "Excluding $dir"
     git_excludes_path=.git/info/exclude
     if ! grep -q '^.git_externals$' "$git_excludes_path"
     then
@@ -95,47 +68,110 @@ function is_excluded()
     return
 }
 
+function git_svn_clone_externals()
+{
+	set -e
 
-git svn show-externals | grep -vE '#|^$' | \
-    sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
-    while read svn_externals
-do
+	toplevel_directory="$(git rev-parse --show-cdup)"
+	[ -n "$toplevel_directory" ] && { echo "please run from the toplevel directory"; return; }
 
-    number_fields="$(echo ${svn_externals}|awk '{print NF}')"
-    case $number_fields in
-        2)
-            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
-            revision=""
-            remote_url="$(echo ${svn_externals} | awk '{print $2}')"
-            ;;
-        3)
-            local_directory="$(echo ${svn_externals} | awk '{print $1}' | sed 's,^/,,')"
-            revision=""$(echo ${svn_externals} | awk '{print $2}')
-            remote_url="$(echo ${svn_externals} | awk '{print $3}')"
-            ;;
-        *) continue ;;
-    esac
+	if isWindows; then
+	    if ! net session &> /dev/null; then
+	        echo 'Please run as administrator! It is required to create symbolic links.'; return;
+	    fi
+	fi
 
-    check_excluded=$(is_excluded $local_directory)
-    if [ $check_excluded -eq 0 ] ; then
-        if [ -n "$USE_SSH" ]; then
-            echo "Rewriting url to use SVN+SSH."
-            shopt -s extglob
-            remote_url="${remote_url/+(http|https)/svn+ssh}"
-        fi
+	git svn show-externals | grep -vE '#|^$' | \
+		sed 's/\(-r\)[ ]*\([0-9]\{1,\}\)/\1\2/' | \
+		while read svn_externals
+	do
+		echo $svn_externals
+			
+		# First get the local directory in which the external was defined
+		local_directory="$(echo ${svn_externals} | sed -r 's_\/(\.\.|\^|)\/.*__' )" 
+		
+		echo "Local directory ${local_directory}"
 
-        [ -z "${remote_url}" ] && continue
+		# Now remove the local directory from the line and see what else we have
+		local_directory_scaped="$(echo ${local_directory} | sed -r 's_\/_\\/_g')" 
+		if [ -n "${local_directory_scaped}" ] ; then
+			otherArguments="$(echo ${svn_externals} | sed -r "s_${local_directory_scaped}__")" 
+		else
+			otherArguments="${svn_externals}" 
+		fi
+		
+		number_fields="$(echo ${otherArguments}|awk '{print NF}')"
+		case $number_fields in
+			2)
+				revision=""
+				remote_url="$(echo ${otherArguments} | awk '{print $1}')"
+				local_folder="$(echo ${otherArguments} | awk '{print $2}')"
+				;;
+			3)
+				revision=""$(echo ${otherArguments} | awk '{print $3}')
+				remote_url="$(echo ${otherArguments} | awk '{print $1}')"
+				local_folder="$(echo ${otherArguments} | awk '{print $2}')"
+				;;
+			*) continue ;;
+		esac
+		
+		echo "Preprocessed remote ${remote_url}"
 
-        export local_directory revision remote_url
+		destination=".${local_directory}/${local_folder}"
+		
+		check_excluded=$(is_excluded $destination)
+		if [ $check_excluded -eq 0 ] ; then
+		
+			if [[ $remote_url == /../* ]]; then
+				# We have relative paths in the remote Url.
+				# Get rid of them using readlink 
+				base_url=$(git svn info | grep 'URL: ' | sed -r 's_URL: __')
+				canonicalPath=$(readlink -m "$local_directory$remote_url")
+				remote_url=$base_url$canonicalPath
+			fi
 
-        echo "$local_directory -> $remote_url"
+			if [[ $remote_url == //* ]]; then
+				#  In this case the path relates to the same server
+				root_url=$(git svn info | grep 'Repository Root: ' | sed -r 's_Repository Root: __')
+				svn_server=$(echo $root_url | awk -F/ '{print $3}')
+				protocol=$(echo $root_url | awk -F/ '{print $1}')
+				remote_url=${protocol}//${svn_server}${remote_url}
+			fi
 
-        dir=`dirname $local_directory`
-        [ -d ".git_externals/$dir" ] || mkdir -p ".git_externals/$dir"
+			if [[ $remote_url == /^/* ]]; then
+				root_url=$(git svn info | grep 'Repository Root: ' | sed -r 's_Repository Root: __')
+				remote_url=$(echo $remote_url | sed -r 's_\^/__')
+				remote_url=${root_url}${remote_url}
+			fi
 
-        do_clone "$revision" "$remote_url" "$local_directory" || exit
-        do_link "$local_directory"
-        do_excludes "$local_directory"
-    fi
+			if [ -n "$USE_SSH" ]; then
+				echo "Rewriting url to use SVN+SSH."
+				shopt -s extglob
+				remote_url="${remote_url/+(http|https)/svn+ssh}"
+			fi
 
-done
+			[ -z "${remote_url}" ] && continue
+
+			if [ -n $revision ]; then
+				revision="HEAD"
+			fi
+
+
+			export local_directory revision remote_url
+		
+			echo "DESTINATION: $destination -> REVISION: $revision -> REMOTE URL: $remote_url"
+
+			dir=`dirname $destination`
+			branch=$(get_branch)
+			[ -d ".git_externals/${branch}/$dir" ] || mkdir -p ".git_externals/${branch}/$dir"
+			echo "Cloning.............................."
+			do_clone "$revision" "$remote_url" "$destination" || return
+			echo "Linking.............................."
+			do_link "$destination"
+			echo "Excludes............................."
+			do_excludes "$destination"
+			echo "Next item............................"
+		fi
+
+	done
+}

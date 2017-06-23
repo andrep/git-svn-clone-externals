@@ -1,0 +1,55 @@
+#!/bin/bash
+
+function isWindows() { [[ -n "$WINDIR" ]]; }
+
+function get_branch()
+{
+    top=$(git rev-parse --show-cdup) 
+    pushd "$top" &> /dev/null
+
+    echo $(git svn info | grep "URL" | sed  "s_URL: __" | awk -F "/" '{print $NF}')
+
+    popd &> /dev/null
+}
+
+function do_link()
+{
+    
+    dir="$1"
+    
+    #Return to the top level directory
+    top=$(git rev-parse --show-cdup)
+    cd "$top" 
+
+     if git ls-files "$dir" --error-unmatch &> /dev/null; then 
+        # If the folder is tracked, we want to exit...
+        #echo "File ${dir} tracked... doing nothing"
+        return;
+    fi;
+
+    base=$(dirname "$dir")
+    (
+        mkdir -p "$base"
+        cd "$base"
+        destFolder=$(basename "$dir")
+        
+        if [[ -d "$destFolder" ]] || [[ -L "$destFolder" ]]; then
+            #echo "Removing link ${destFolder}"
+            rm -rf "$destFolder"     
+        fi
+
+        top=$(git rev-parse --show-cdup)
+        #echo "Top directory is $top"
+        #echo "Current dir is is $PWD"
+
+        if isWindows; then
+            link_des_windows=$(cygpath -w "${top}.git_externals/$(get_branch)/${dir}")
+            
+            #echo "Creating link from ${PWD}/${destFolder} to $link_des_windows"
+            cmd <<< "mklink /D \"${destFolder%/}\" \"${link_des_windows%/}\"" > /dev/null
+            
+        else
+            ln -s "${top}.git_externals/$(get_branch)${dir}" "$destFolder"
+        fi
+    )
+}
